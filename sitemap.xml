@@ -1,72 +1,72 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-        <loc>/</loc>
+        <loc>https://nemokaul.github.io/java/</loc>
     </url>
     <url>
-        <loc>/sections/</loc>
+        <loc>https://nemokaul.github.io/java/sections/</loc>
     </url>
     <url>
-        <loc>/sections/01-jvm-java-fundamentals/</loc>
+        <loc>https://nemokaul.github.io/java/sections/01-jvm-java-fundamentals/</loc>
     </url>
     <url>
-        <loc>/sections/02-collections-streams-generics/</loc>
+        <loc>https://nemokaul.github.io/java/sections/02-collections-streams-generics/</loc>
     </url>
     <url>
-        <loc>/sections/03-concurrency-modern-java/</loc>
+        <loc>https://nemokaul.github.io/java/sections/03-concurrency-modern-java/</loc>
     </url>
     <url>
-        <loc>/sections/04-web-internals-and-tdd-basics/</loc>
+        <loc>https://nemokaul.github.io/java/sections/04-web-internals-and-tdd-basics/</loc>
     </url>
     <url>
-        <loc>/sections/05-spring-core/</loc>
+        <loc>https://nemokaul.github.io/java/sections/05-spring-core/</loc>
     </url>
     <url>
-        <loc>/sections/06-spring-data-and-tx/</loc>
+        <loc>https://nemokaul.github.io/java/sections/06-spring-data-and-tx/</loc>
     </url>
     <url>
-        <loc>/sections/07-spring-web-mvc-rest/</loc>
+        <loc>https://nemokaul.github.io/java/sections/07-spring-web-mvc-rest/</loc>
     </url>
     <url>
-        <loc>/sections/08-webflux-reactor/</loc>
+        <loc>https://nemokaul.github.io/java/sections/08-webflux-reactor/</loc>
     </url>
     <url>
-        <loc>/sections/09-graphql/</loc>
+        <loc>https://nemokaul.github.io/java/sections/09-graphql/</loc>
     </url>
     <url>
-        <loc>/sections/10-grpc/</loc>
+        <loc>https://nemokaul.github.io/java/sections/10-grpc/</loc>
     </url>
     <url>
-        <loc>/sections/11-spring-security-and-oauth2/</loc>
+        <loc>https://nemokaul.github.io/java/sections/11-spring-security-and-oauth2/</loc>
     </url>
     <url>
-        <loc>/sections/12-spring-boot-deep-dive/</loc>
+        <loc>https://nemokaul.github.io/java/sections/12-spring-boot-deep-dive/</loc>
     </url>
     <url>
-        <loc>/sections/13-persistence-migrations/</loc>
+        <loc>https://nemokaul.github.io/java/sections/13-persistence-migrations/</loc>
     </url>
     <url>
-        <loc>/sections/14-testing-tdd/</loc>
+        <loc>https://nemokaul.github.io/java/sections/14-testing-tdd/</loc>
     </url>
     <url>
-        <loc>/sections/15-clean-architecture/</loc>
+        <loc>https://nemokaul.github.io/java/sections/15-clean-architecture/</loc>
     </url>
     <url>
-        <loc>/sections/16-microservices-patterns/</loc>
+        <loc>https://nemokaul.github.io/java/sections/16-microservices-patterns/</loc>
     </url>
     <url>
-        <loc>/sections/17-messaging-kafka-rabbitmq/</loc>
+        <loc>https://nemokaul.github.io/java/sections/17-messaging-kafka-rabbitmq/</loc>
     </url>
     <url>
-        <loc>/sections/18-containerisation-deploy/</loc>
+        <loc>https://nemokaul.github.io/java/sections/18-containerisation-deploy/</loc>
     </url>
     <url>
-        <loc>/sections/19-spring-ai-agents-mcp/</loc>
+        <loc>https://nemokaul.github.io/java/sections/19-spring-ai-agents-mcp/</loc>
     </url>
     <url>
-        <loc>/sections/20-fullstack-frontend-react-vite/</loc>
+        <loc>https://nemokaul.github.io/java/sections/20-fullstack-frontend-react-vite/</loc>
     </url>
     <url>
-        <loc>/sections/21-capstone-batteries-included/</loc>
+        <loc>https://nemokaul.github.io/java/sections/21-capstone-batteries-included/</loc>
     </url>
 </urlset>

@@ -625,8 +625,11 @@
           return;
         }
 
+        const metaBase = document.querySelector('meta[name="base-url"]')?.getAttribute('content');
+        const baseUrl = metaBase ? (metaBase.endsWith('/') ? metaBase : `${metaBase}/`) : (window.location.pathname.startsWith('/java') ? '/java/' : '/');
+
         searchResults.innerHTML = matches.map(m => `
-          <a href="/sections/${m.sec.slug}#video-${m.v.id}" class="block p-3 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors border-b border-neutral-100 dark:border-neutral-800/60 last:border-0" onclick="document.getElementById('search-modal').classList.add('hidden')">
+          <a href="${baseUrl}sections/${m.sec.slug}/#video-${m.v.id}" class="block p-3 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors border-b border-neutral-100 dark:border-neutral-800/60 last:border-0" onclick="document.getElementById('search-modal').classList.add('hidden')">
             <div class="flex items-center justify-between gap-2 mb-1">
               <span class="text-[11px] font-semibold text-blue-600 dark:text-blue-400">§${m.ch.id} • ${m.sec.title}</span>
               <span class="text-[10px] font-mono text-neutral-500">${m.v.durationText}</span>
