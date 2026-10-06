@@ -29,6 +29,180 @@
     return `${s}s`;
   }
 
+  // Helper: Format seconds into padded 00m00s / HHhMMmSSs string
+  function formatMMSS(sec) {
+    if (!sec || isNaN(sec) || sec <= 0) return "00m00s";
+    const totalSec = Math.round(sec);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) {
+      return `${h}h${String(m).padStart(2, '0')}m${String(s).padStart(2, '0')}s`;
+    }
+    return `${String(m).padStart(2, '0')}m${String(s).padStart(2, '0')}s`;
+  }
+
+  // Get aggregated stats for a specific chapter
+  function getChapterStats(chapId) {
+    const courseData = window.COURSE_DATA;
+    if (!courseData || !courseData.sections) {
+      return {
+        totalVideos: 0,
+        completedVideos: 0,
+        inProgressVideos: 0,
+        totalDuration: 0,
+        completedDuration: 0,
+        inProgressDuration: 0,
+        pctCount: 0,
+        pctDuration: 0
+      };
+    }
+
+    let totalVideos = 0;
+    let completedVideos = 0;
+    let inProgressVideos = 0;
+    let totalDuration = 0;
+    let completedDuration = 0;
+    let inProgressDuration = 0;
+
+    for (const sec of courseData.sections) {
+      const ch = sec.chapters.find(c => c.id === chapId || c.number === chapId || String(c.id) === String(chapId));
+      if (ch) {
+        for (const v of ch.videos) {
+          totalVideos++;
+          totalDuration += v.durationSeconds || 0;
+          const status = getVideoStatus(v.id);
+          if (status === "completed") {
+            completedVideos++;
+            completedDuration += v.durationSeconds || 0;
+          } else if (status === "in_progress") {
+            inProgressVideos++;
+            inProgressDuration += v.durationSeconds || 0;
+          }
+        }
+        break;
+      }
+    }
+
+    const pctCount = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
+    const pctDuration = totalDuration > 0 ? Math.round((completedDuration / totalDuration) * 100) : 0;
+
+    return {
+      totalVideos,
+      completedVideos,
+      inProgressVideos,
+      totalDuration,
+      completedDuration,
+      inProgressDuration,
+      pctCount,
+      pctDuration
+    };
+  }
+
+  // Get aggregated stats for a specific Part (1, 2, or 3)
+  function getPartStats(partNum) {
+    const courseData = window.COURSE_DATA;
+    if (!courseData || !courseData.sections) {
+      return { totalVideos: 0, completedVideos: 0, totalDuration: 0, completedDuration: 0, pctCount: 0 };
+    }
+    let totalVideos = 0;
+    let completedVideos = 0;
+    let totalDuration = 0;
+    let completedDuration = 0;
+
+    const sectionsInPart = courseData.sections.filter(s => s.part === Number(partNum));
+    for (const sec of sectionsInPart) {
+      for (const ch of sec.chapters) {
+        for (const v of ch.videos) {
+          totalVideos++;
+          totalDuration += v.durationSeconds || 0;
+          const status = getVideoStatus(v.id);
+          if (status === "completed") {
+            completedVideos++;
+            completedDuration += v.durationSeconds || 0;
+          }
+        }
+      }
+    }
+    const pctCount = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
+    return { totalVideos, completedVideos, totalDuration, completedDuration, pctCount };
+  }
+
+  // Handle sidebar navigation: auto-open details, glow pulse, scroll, and active indicator
+  function handleSidebarNavigation(targetId) {
+    if (!targetId) return;
+    const targetEl = document.getElementById(targetId);
+    if (!targetEl) return;
+
+    // 1. If target is inside collapsed details (e.g. chapter card), expand them
+    let parent = targetEl.parentElement;
+    while (parent) {
+      if (parent.tagName === "DETAILS" && !parent.open) {
+        parent.open = true;
+      }
+      parent = parent.parentElement;
+    }
+
+    // 2. Smoothly scroll into center
+    targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    // 3. Apply glow highlight with animation trigger
+    document.querySelectorAll(".glow-highlight").forEach(el => {
+      el.classList.remove("glow-highlight");
+    });
+    void targetEl.offsetWidth; // trigger reflow
+    targetEl.classList.add("glow-highlight");
+    setTimeout(() => {
+      targetEl.classList.remove("glow-highlight");
+    }, 2400);
+
+    // 4. Update active states in sidebar
+    const cleanId = targetId.startsWith("video-") ? targetId.replace("video-", "") : targetId;
+    updateActiveSidebarItem(cleanId);
+  }
+
+  // Update active sidebar link, chapter header, and parent details
+  function updateActiveSidebarItem(cleanVideoId) {
+    if (!cleanVideoId) return;
+
+    // Remove active styles from links and chapter headers
+    document.querySelectorAll(".sidebar-video-link").forEach(link => {
+      link.classList.remove("active-sidebar-item");
+    });
+    document.querySelectorAll(".chapter-summary").forEach(sum => {
+      sum.classList.remove("active-chapter-header");
+    });
+
+    const activeLink = document.querySelector(`.sidebar-video-link[data-sidebar-video-id="${cleanVideoId}"]`);
+    if (activeLink) {
+      activeLink.classList.add("active-sidebar-item");
+
+      // Highlight and expand parent chapter details
+      const parentChap = activeLink.closest(".chapter-details");
+      if (parentChap) {
+        if (!parentChap.open) parentChap.open = true;
+        const sum = parentChap.querySelector(".chapter-summary");
+        if (sum) sum.classList.add("active-chapter-header");
+      }
+
+      // Ensure parent section details is open
+      const parentSec = activeLink.closest("aside#course-sidebar details");
+      if (parentSec && !parentSec.open) {
+        parentSec.open = true;
+      }
+
+      // Scroll sidebar container to keep active item in view if needed
+      const sidebarNav = document.getElementById("sidebar-nav-container");
+      if (sidebarNav) {
+        const linkRect = activeLink.getBoundingClientRect();
+        const navRect = sidebarNav.getBoundingClientRect();
+        if (linkRect.top < navRect.top || linkRect.bottom > navRect.bottom) {
+          activeLink.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }
+    }
+  }
+
   // Load from localStorage
   function loadState() {
     try {
@@ -267,7 +441,7 @@
       } else if (mode === "time") {
         badge.textContent = `${formatSeconds(secStats.completedDuration)} / ${formatSeconds(secStats.totalDuration)}`;
       } else {
-        badge.textContent = `${secStats.completedVideos}/${secStats.totalVideos} • ${formatSeconds(secStats.completedDuration)}`;
+        badge.textContent = `${secStats.completedVideos}/${secStats.totalVideos} videos • ${formatSeconds(secStats.completedDuration)}`;
       }
     });
 
@@ -276,6 +450,74 @@
       const secId = bar.getAttribute("data-section-progress-bar");
       const secStats = getStats(secId);
       bar.style.width = `${secStats.pctDuration}%`;
+    });
+
+    // 5. Update Chapter Cumulative Time Badges (Sidebar & Main Cards)
+    document.querySelectorAll("[data-chapter-time-id]").forEach(el => {
+      const chId = el.getAttribute("data-chapter-time-id");
+      const chStats = getChapterStats(chId);
+      const isSidebar = el.closest("#course-sidebar") !== null;
+      if (isSidebar) {
+        el.textContent = `${formatMMSS(chStats.completedDuration)}/${formatMMSS(chStats.totalDuration)}`;
+      } else {
+        el.textContent = `${formatMMSS(chStats.completedDuration)} / ${formatMMSS(chStats.totalDuration)}`;
+      }
+    });
+
+    // Update Chapter Lesson Count Badges (if present)
+    document.querySelectorAll("[data-chapter-count-id]").forEach(el => {
+      const chId = el.getAttribute("data-chapter-count-id");
+      const chStats = getChapterStats(chId);
+      el.textContent = `${chStats.completedVideos}/${chStats.totalVideos}`;
+    });
+
+    // 6. Update Section Total Time and Summary Badges
+    document.querySelectorAll("[data-section-time-id]").forEach(el => {
+      const secId = el.getAttribute("data-section-time-id");
+      const secStats = getStats(secId);
+      el.textContent = `${formatMMSS(secStats.completedDuration)} / ${formatMMSS(secStats.totalDuration)}`;
+    });
+
+    document.querySelectorAll("[data-section-time-summary-id]").forEach(el => {
+      const secId = el.getAttribute("data-section-time-summary-id");
+      const secStats = getStats(secId);
+      el.textContent = `${formatMMSS(secStats.completedDuration)} / ${formatMMSS(secStats.totalDuration)}`;
+    });
+
+    // Update Section Percentage Displays
+    document.querySelectorAll("[data-section-pct-id]").forEach(el => {
+      const secId = el.getAttribute("data-section-pct-id");
+      const secStats = getStats(secId);
+      el.textContent = `${secStats.pctDuration}%`;
+    });
+    document.querySelectorAll("[data-section-pct-display-id]").forEach(el => {
+      const secId = el.getAttribute("data-section-pct-display-id");
+      const secStats = getStats(secId);
+      el.textContent = `(${secStats.pctDuration}%)`;
+    });
+
+    // Update Section In-Progress Displays
+    document.querySelectorAll("[data-section-inprogress-id]").forEach(el => {
+      const secId = el.getAttribute("data-section-inprogress-id");
+      const secStats = getStats(secId);
+      el.textContent = formatMMSS(secStats.inProgressDuration);
+      const cont = el.closest("[data-section-inprogress-container]");
+      if (cont) {
+        if (secStats.inProgressVideos > 0) {
+          cont.classList.remove("hidden");
+          cont.classList.add("inline-flex");
+        } else {
+          cont.classList.add("hidden");
+          cont.classList.remove("inline-flex");
+        }
+      }
+    });
+
+    // 7. Update Part 1/2/3 Analytics on Homepage
+    document.querySelectorAll("[data-part-stats-id]").forEach(el => {
+      const partNum = el.getAttribute("data-part-stats-id");
+      const partStats = getPartStats(partNum);
+      el.textContent = `${partStats.completedVideos}/${partStats.totalVideos} Videos • ${formatSeconds(partStats.completedDuration)} / ${formatSeconds(partStats.totalDuration)}`;
     });
   }
 
@@ -429,6 +671,32 @@
         const key = videoLink.getAttribute("data-video-key");
         if (getVideoStatus(key) === "not_started") {
           setVideoStatus(key, "in_progress");
+        }
+      }
+
+      // Sidebar video link click delegation: smooth scroll, glow highlight, and active state
+      const sidebarVidLink = e.target.closest(".sidebar-video-link");
+      if (sidebarVidLink) {
+        const href = sidebarVidLink.getAttribute("href");
+        if (href && href.includes("#video-")) {
+          const hashIndex = href.indexOf("#");
+          const hashPart = href.substring(hashIndex);
+          const targetId = hashPart.replace("#", "");
+          const targetEl = document.getElementById(targetId);
+          if (targetEl) {
+            e.preventDefault();
+            handleSidebarNavigation(targetId);
+            try {
+              history.pushState(null, "", hashPart);
+            } catch (err) {}
+            if (window.innerWidth < 1024) {
+              const sidebar = document.getElementById("course-sidebar");
+              const backdrop = document.getElementById("sidebar-backdrop");
+              if (sidebar) sidebar.classList.add("-translate-x-full");
+              if (backdrop) backdrop.classList.add("hidden");
+            }
+            return;
+          }
         }
       }
 
@@ -654,6 +922,50 @@
       window.addEventListener("scroll", handleScroll, { passive: true });
       handleScroll();
     }
+
+    // Initial hash handling on page load (auto opens parent chapter, scrolls, and glows)
+    if (window.location.hash) {
+      const initialHash = window.location.hash.replace("#", "");
+      if (initialHash.startsWith("video-")) {
+        setTimeout(() => {
+          handleSidebarNavigation(initialHash);
+        }, 200);
+      }
+    }
+
+    // Hash change handler for anchor navigation
+    window.addEventListener("hashchange", () => {
+      if (window.location.hash) {
+        const hash = window.location.hash.replace("#", "");
+        if (hash.startsWith("video-")) {
+          handleSidebarNavigation(hash);
+        }
+      }
+    });
+
+    // ScrollSpy observer: dynamically sync active sidebar item while reading lessons
+    const videoCards = document.querySelectorAll(".video-card[data-video-key]");
+    if (videoCards.length > 0 && "IntersectionObserver" in window) {
+      let activeSpiedKey = null;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const key = entry.target.getAttribute("data-video-key");
+              if (key && key !== activeSpiedKey) {
+                activeSpiedKey = key;
+                updateActiveSidebarItem(key);
+              }
+            }
+          });
+        },
+        {
+          rootMargin: "-15% 0px -60% 0px",
+          threshold: 0
+        }
+      );
+      videoCards.forEach(card => observer.observe(card));
+    }
   });
 
   // Expose global tracker API
@@ -662,6 +974,10 @@
     setVideoStatus,
     cycleVideoStatus,
     getStats,
+    getChapterStats,
+    getPartStats,
+    handleSidebarNavigation,
+    updateActiveSidebarItem,
     syncUI,
     exportProgressJSON,
     resetAllProgress
