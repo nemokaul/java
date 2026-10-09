@@ -1009,6 +1009,189 @@
   let currentCardIndex = 0;
   let isCardFlipped = false;
   let isOptionLocked = false;
+  let activeAttemptedOpts = new Set();
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function formatExplanation(text) {
+    if (!text) return "";
+    const escaped = escapeHtml(text);
+    return escaped.replace(/`([^`]+)`/g, '<code class="fc-inline-code">$1</code>');
+  }
+
+  function buildGoogleDorkUrl(citation) {
+    if (!citation) return "https://www.google.com/search?q=java+documentation";
+    
+    // Take primary specification citation before " / " if dual-cited
+    const primaryPart = citation.split("/")[0].trim();
+    
+    let query = "";
+    if (/JEP\s*(\d+)/i.test(primaryPart)) {
+      const match = primaryPart.match(/JEP\s*(\d+)/i);
+      query = `site:openjdk.org/jeps/ "${match[1]}" OR site:openjdk.org "${match[0]}"`;
+    } else if (/JVM|Java Virtual Machine/i.test(primaryPart)) {
+      const secMatch = primaryPart.match(/§\s*([\d.]+)/);
+      const sec = secMatch ? ` "${secMatch[1]}"` : "";
+      query = `site:docs.oracle.com/javase/specs/ "Java Virtual Machine Specification"${sec}`;
+    } else if (/JLS|Java Language Specification/i.test(primaryPart)) {
+      const secMatch = primaryPart.match(/§\s*([\d.]+)/);
+      const sec = secMatch ? ` "${secMatch[1]}"` : "";
+      query = `site:docs.oracle.com/javase/specs/ "Java Language Specification"${sec}`;
+    } else if (/HotSpot|Garbage Collection|GC Tuning/i.test(primaryPart)) {
+      query = `site:docs.oracle.com/en/java/javase/ "HotSpot" "Garbage Collection Tuning Guide"`;
+    } else if (/Tool Specifications|Tools:/i.test(primaryPart)) {
+      const toolMatch = primaryPart.match(/\b(javac|java|javap|jcmd|jstack|jmap|jconsole|jar|jlink)\b/i);
+      const tool = toolMatch ? ` "${toolMatch[1]}"` : "";
+      query = `site:docs.oracle.com/en/java/javase/ "tools"${tool}`;
+    } else if (/Effective Java/i.test(primaryPart)) {
+      const itemMatch = primaryPart.match(/Item\s*\d+/i);
+      const item = itemMatch ? ` "${itemMatch[0]}"` : "";
+      query = `"Effective Java"${item} Joshua Bloch`;
+    } else if (/Spring/i.test(primaryPart)) {
+      query = `site:docs.spring.io ${primaryPart.replace(/[§]/g, "")}`;
+    } else {
+      query = `site:docs.oracle.com/en/java/ OR site:docs.oracle.com/javase/specs/ "${primaryPart.replace(/[§]/g, "").trim()}"`;
+    }
+    
+    return `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+  }
+
+  function updateBackResultBanner(type, attemptNum = 1) {
+    const resultBanner = document.getElementById("fc-result-banner");
+    const resultIcon = document.getElementById("fc-result-icon");
+    const resultText = document.getElementById("fc-result-text");
+    if (!resultBanner) return;
+
+    if (type === "correct") {
+      resultBanner.className = "fc-result-banner is-correct";
+      if (resultIcon) resultIcon.textContent = attemptNum === 1 ? "🎉" : "✓";
+      if (resultText) {
+        resultText.textContent = attemptNum === 1
+          ? "Mastered on 1st attempt! Complete breakdown:"
+          : `Solved on attempt ${attemptNum}. Complete breakdown:`;
+      }
+    } else if (type === "wrong") {
+      resultBanner.className = "fc-result-banner is-wrong";
+      if (resultIcon) resultIcon.textContent = "⚠️";
+      if (resultText) resultText.textContent = "Review Required (Options Exhausted). Complete breakdown:";
+    } else {
+      resultBanner.className = "fc-result-banner is-neutral";
+      if (resultIcon) resultIcon.textContent = "💡";
+      if (resultText) resultText.textContent = "Concept Breakdown & Deep Dive:";
+    }
+  }
+
+  function setupFlashcardScrollHandlers() {
+    const frontBody = document.querySelector(".fc-face-front .fc-face-body");
+    const backBody = document.querySelector(".fc-face-back .fc-face-body");
+    const codeBox = document.querySelector(".fc-face-back .code-snippet-box");
+
+    const attachWheel = (container) => {
+      if (!container || container._wheelBound) return;
+      container._wheelBound = true;
+      container.addEventListener("wheel", (e) => {
+        // If user holds Shift or deltaX dominates, allow horizontal scroll natively
+        if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+          return;
+        }
+        if (container.scrollHeight > container.clientHeight) {
+          container.scrollTop += e.deltaY;
+        }
+      }, { passive: true });
+    };
+
+    if (frontBody) attachWheel(frontBody);
+    if (backBody) attachWheel(backBody);
+
+    if (codeBox && backBody && !codeBox._wheelBound) {
+      codeBox._wheelBound = true;
+      codeBox.addEventListener("wheel", (e) => {
+        // When user scrolls horizontally on code, NEVER interfere with horizontal code scrolling!
+        if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+          return;
+        }
+        // Pure vertical scroll intent -> forward smoothly to backBody
+        if (backBody.scrollHeight > backBody.clientHeight) {
+          backBody.scrollTop += e.deltaY;
+        }
+      }, { passive: true });
+    }
+  }
+
+  function highlightSyntax(code) {
+    if (!code) return "";
+    const lines = code.split("\n");
+    const processedLines = lines.map(line => {
+      // Shell CLI detection: e.g. "% javac ..." or "$ java ..." or "# docker ..."
+      const shellMatch = line.match(/^(\s*)([%#$])\s+([a-zA-Z0-9_.-]+)(.*)$/);
+      if (shellMatch) {
+        const indent = escapeHtml(shellMatch[1]);
+        const prompt = escapeHtml(shellMatch[2]);
+        const cmd = escapeHtml(shellMatch[3]);
+        const rest = shellMatch[4];
+        const restHighlighted = rest.replace(/(--?[a-zA-Z0-9_.:/-]+)/g, '<span class="tok-flag">$1</span>');
+        return `${indent}<span class="tok-prompt">${prompt}</span> <span class="tok-cmd">${cmd}</span>${restHighlighted}`;
+      }
+
+      // Comments
+      const commentIdx = line.indexOf("//");
+      let codePart = line;
+      let commentPart = "";
+      if (commentIdx !== -1) {
+        codePart = line.substring(0, commentIdx);
+        commentPart = `<span class="tok-comment">${escapeHtml(line.substring(commentIdx))}</span>`;
+      }
+
+      let escaped = escapeHtml(codePart);
+
+      // 1. Stash string literals into placeholders
+      const strings = [];
+      escaped = escaped.replace(/(&quot;.*?&quot;)/g, (match) => {
+        const idx = strings.length;
+        strings.push(`<span class="tok-str">${match}</span>`);
+        return `___STR_PLACEHOLDER_${idx}___`;
+      });
+
+      // 2. Stash annotations into placeholders
+      const annos = [];
+      escaped = escaped.replace(/(@[A-Z][a-zA-Z0-9_]*)/g, (match) => {
+        const idx = annos.length;
+        annos.push(`<span class="tok-anno">${match}</span>`);
+        return `___ANNO_PLACEHOLDER_${idx}___`;
+      });
+
+      // 3. Keywords
+      const kwRegex = /\b(public|private|protected|class|interface|record|enum|extends|implements|static|final|abstract|void|return|new|this|super|throws|throw|try|catch|finally|import|package|if|else|while|for|switch|case|default|break|continue|instanceof|var|null|true|false|boolean|int|long|double|float|char|byte|short|transient|volatile|synchronized|native)\b/g;
+      escaped = escaped.replace(kwRegex, '<span class="tok-kw">$1</span>');
+
+      // 4. Common Java Types & Classes
+      const typeRegex = /\b(String|Object|Integer|Long|Double|BigDecimal|List|Map|Set|ArrayList|HashMap|HashSet|ConcurrentHashMap|Optional|Stream|Path|Paths|Files|StandardCharsets|StandardOpenOption|BufferedReader|FileReader|InputStream|OutputStream|Reader|Writer|Date|Exception|RuntimeException|IOException|SQLException|AutoCloseable|Closeable|Throwable|System|Math|User|Point|Account|Counter|OrderService|BankAccount|NutritionFacts|DatabaseRegistry|HolderSingleton|Calculator|Credentials|OrderStatus|Operation|Class)\b/g;
+      escaped = escaped.replace(typeRegex, '<span class="tok-type">$1</span>');
+
+      // 5. Numbers
+      escaped = escaped.replace(/\b(\d+L?|\d+\.\d+f?|0x[0-9a-fA-F]+)\b/g, '<span class="tok-num">$1</span>');
+
+      // 6. Restore annotations and strings
+      annos.forEach((val, idx) => {
+        escaped = escaped.replace(`___ANNO_PLACEHOLDER_${idx}___`, val);
+      });
+      strings.forEach((val, idx) => {
+        escaped = escaped.replace(`___STR_PLACEHOLDER_${idx}___`, val);
+      });
+
+      return escaped + commentPart;
+    });
+
+    return processedLines.join("\n");
+  }
 
   function getFlashcardUrl(deckId) {
     if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
@@ -1078,7 +1261,9 @@
       currentCardIndex = 0;
       isCardFlipped = false;
       isOptionLocked = false;
+      activeAttemptedOpts = new Set();
       renderCurrentCard();
+      setupFlashcardScrollHandlers();
       window.addEventListener("keydown", handleFlashcardKeydown);
     } catch (err) {
       console.error(err);
@@ -1156,13 +1341,45 @@
     const questionEl = document.getElementById("fc-question-text");
     if (questionEl) questionEl.textContent = card.question;
 
+    // Active attempts reset and populate from saved state if any
+    activeAttemptedOpts = new Set();
+    if (savedCardState) {
+      if (Array.isArray(savedCardState.attempts)) {
+        savedCardState.attempts.forEach(id => activeAttemptedOpts.add(id));
+      } else if (savedCardState.selectedOpt) {
+        activeAttemptedOpts.add(savedCardState.selectedOpt);
+      }
+    }
+
+    // Attempt feedback banner
+    const attemptBanner = document.getElementById("fc-attempt-banner");
+    if (attemptBanner) {
+      if (savedCardState) {
+        if (savedCardState.isCorrect) {
+          const count = activeAttemptedOpts.size || 1;
+          attemptBanner.className = "fc-attempt-banner is-correct";
+          attemptBanner.innerHTML = count === 1
+            ? "<span>🎉 Mastered on 1st attempt! Excellent recall.</span>"
+            : `<span>✓ Mastered (Solved on attempt ${count})</span>`;
+          attemptBanner.classList.remove("hidden");
+        } else {
+          attemptBanner.className = "fc-attempt-banner is-wrong";
+          attemptBanner.innerHTML = "<span>⚠️ Options exhausted. Review the explanation.</span>";
+          attemptBanner.classList.remove("hidden");
+        }
+      } else {
+        attemptBanner.className = "fc-attempt-banner hidden";
+        attemptBanner.innerHTML = "";
+      }
+    }
+
     // MCQ Options
     const optContainer = document.getElementById("fc-options-container");
     if (optContainer) {
       optContainer.innerHTML = "";
       isOptionLocked = !!savedCardState;
 
-      card.options.forEach((opt, idx) => {
+      card.options.forEach((opt) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "mcq-option-btn";
@@ -1183,7 +1400,7 @@
           btn.disabled = true;
           if (opt.correct) {
             btn.classList.add("opt-correct");
-          } else if (savedCardState.selectedOpt === opt.id && !opt.correct) {
+          } else if (activeAttemptedOpts.has(opt.id) && !opt.correct) {
             btn.classList.add("opt-wrong");
           }
         } else {
@@ -1195,32 +1412,34 @@
     }
 
     // Back Face Rendering
-    const resultBanner = document.getElementById("fc-result-banner");
-    const resultText = document.getElementById("fc-result-text");
-    if (resultBanner && resultText) {
-      if (savedCardState?.isCorrect) {
-        resultBanner.className = "flex items-center gap-2 p-2.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800";
-        resultText.textContent = "🎉 Correct! Excellent recall.";
-      } else if (savedCardState && !savedCardState.isCorrect) {
-        resultBanner.className = "flex items-center gap-2 p-2.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900";
-        resultText.textContent = "Review Required. Here is the accurate breakdown:";
-      } else {
-        resultBanner.className = "flex items-center gap-2 p-2.5 rounded-lg text-xs font-semibold bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700";
-        resultText.textContent = "Concept Breakdown & Deep Dive:";
-      }
+    if (savedCardState?.isCorrect) {
+      const count = activeAttemptedOpts.size || 1;
+      updateBackResultBanner("correct", count);
+    } else if (savedCardState && !savedCardState.isCorrect) {
+      updateBackResultBanner("wrong");
+    } else {
+      updateBackResultBanner("neutral");
+    }
+
+    // Correct Answer Pill
+    const correctOpt = card.options.find(o => o.correct);
+    const correctOptEl = document.getElementById("fc-correct-answer-text");
+    if (correctOptEl && correctOpt) {
+      correctOptEl.innerHTML = `Option ${correctOpt.id}: ${formatExplanation(correctOpt.text)}`;
     }
 
     const expText = document.getElementById("fc-explanation-text");
-    if (expText) expText.textContent = card.explanation;
+    if (expText) expText.innerHTML = formatExplanation(card.explanation);
 
     const codeContainer = document.getElementById("fc-code-container");
     const codeSnippet = document.getElementById("fc-code-snippet");
     if (codeContainer && codeSnippet) {
       if (card.codeSnippet) {
         codeContainer.classList.remove("hidden");
-        codeSnippet.textContent = card.codeSnippet;
+        codeSnippet.innerHTML = highlightSyntax(card.codeSnippet);
       } else {
         codeContainer.classList.add("hidden");
+        codeSnippet.innerHTML = "";
       }
     }
 
@@ -1229,75 +1448,166 @@
     if (pitfallContainer && pitfallText) {
       if (card.pitfall) {
         pitfallContainer.classList.remove("hidden");
-        pitfallText.textContent = card.pitfall;
+        pitfallText.innerHTML = formatExplanation(card.pitfall);
       } else {
         pitfallContainer.classList.add("hidden");
+        pitfallText.innerHTML = "";
       }
     }
 
     const citationText = document.getElementById("fc-citation-text");
-    if (citationText) citationText.textContent = card.citation || "Java SE 21 Specification";
+    const citationLink = document.getElementById("fc-citation-link");
+    const citationStr = card.citation || "Java SE 21 Specification";
+    if (citationText) citationText.textContent = citationStr;
+    if (citationLink) {
+      citationLink.href = buildGoogleDorkUrl(citationStr);
+      citationLink.title = `Search Google: ${citationStr}`;
+    }
+
+    setupFlashcardScrollHandlers();
   }
 
   function handleOptionSelection(optId) {
     if (isOptionLocked || !currentDeck) return;
-    isOptionLocked = true;
+    if (activeAttemptedOpts.has(optId)) return; // already tried this incorrect option
 
     const card = currentDeck.cards[currentCardIndex];
     const deckId = currentDeck.deckId;
     const selectedOption = card.options.find(o => o.id === optId);
     const isCorrect = selectedOption ? !!selectedOption.correct : false;
+    const attemptBanner = document.getElementById("fc-attempt-banner");
+    const totalOpts = card.options.length;
 
-    // Initialize deck in state if not present
-    if (!fcState.decks[deckId]) {
-      fcState.decks[deckId] = { cards: {} };
-    }
+    activeAttemptedOpts.add(optId);
 
-    // Persist card answer & mastery
-    fcState.decks[deckId].cards[card.id] = {
-      status: isCorrect ? "mastered" : "needs_review",
-      selectedOpt: optId,
-      isCorrect: isCorrect,
-      updatedAt: Date.now()
-    };
-    saveFcState();
-
-    // Visual feedback on options
-    const optionButtons = document.querySelectorAll("#fc-options-container .mcq-option-btn");
-    optionButtons.forEach(btn => {
-      btn.disabled = true;
-      const bId = btn.getAttribute("data-opt-id");
-      const optObj = card.options.find(o => o.id === bId);
-      if (optObj && optObj.correct) {
-        btn.classList.add("opt-correct");
-      } else if (bId === optId && !isCorrect) {
-        btn.classList.add("opt-wrong");
+    if (!isCorrect) {
+      // Disable clicked button and mark opt-wrong
+      const clickedBtn = document.querySelector(`#fc-options-container .mcq-option-btn[data-opt-id="${optId}"]`);
+      if (clickedBtn) {
+        clickedBtn.disabled = true;
+        clickedBtn.classList.add("opt-wrong");
       }
-    });
 
-    // Update status badge
-    const statusEl = document.getElementById("fc-card-status");
-    if (statusEl) {
-      if (isCorrect) {
-        statusEl.textContent = "✅ Mastered";
-        statusEl.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800";
-      } else {
+      const remainingChoices = totalOpts - activeAttemptedOpts.size;
+
+      // Udemy multi-attempt: if choices remain (> 1), allow retrying!
+      if (remainingChoices > 1) {
+        if (attemptBanner) {
+          attemptBanner.className = "fc-attempt-banner is-wrong";
+          attemptBanner.innerHTML = `<span>❌ Incorrect. Please try again! (${remainingChoices} options remaining)</span>`;
+          attemptBanner.classList.remove("hidden");
+        }
+        return;
+      }
+
+      // Exhausted all options! (Only 1 remaining choice unselected)
+      isOptionLocked = true;
+
+      // Reveal correct option and disable all options
+      const optionButtons = document.querySelectorAll("#fc-options-container .mcq-option-btn");
+      optionButtons.forEach(btn => {
+        btn.disabled = true;
+        const bId = btn.getAttribute("data-opt-id");
+        const optObj = card.options.find(o => o.id === bId);
+        if (optObj && optObj.correct) {
+          btn.classList.add("opt-correct");
+        }
+      });
+
+      if (attemptBanner) {
+        attemptBanner.className = "fc-attempt-banner is-wrong";
+        attemptBanner.innerHTML = "<span>❌ Options exhausted. Reviewing concept breakdown...</span>";
+        attemptBanner.classList.remove("hidden");
+      }
+
+      // Save state as needs_review
+      if (!fcState.decks[deckId]) fcState.decks[deckId] = { cards: {} };
+      fcState.decks[deckId].cards[card.id] = {
+        status: "needs_review",
+        selectedOpt: optId,
+        attempts: Array.from(activeAttemptedOpts),
+        isCorrect: false,
+        exhausted: true,
+        updatedAt: Date.now()
+      };
+      saveFcState();
+
+      // Status badge
+      const statusEl = document.getElementById("fc-card-status");
+      if (statusEl) {
         statusEl.textContent = "⚠️ Needs Review";
         statusEl.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800";
       }
+
+      // Mastery stats & progress bar
+      const masteryStats = getDeckMasteryStats(deckId, currentDeck.cards.length);
+      const masteryStatEl = document.getElementById("fc-mastery-stat");
+      if (masteryStatEl) masteryStatEl.textContent = `${masteryStats.mastered} Mastered (${masteryStats.pct}%)`;
+      const progressBar = document.getElementById("fc-progress-bar");
+      if (progressBar) progressBar.style.width = `${masteryStats.pct}%`;
+
+      // Auto flip after 750ms so user clearly sees the correct option highlighted
+      setTimeout(() => {
+        updateBackResultBanner("wrong");
+        flipCard(true);
+      }, 750);
+
+    } else {
+      // Correct choice!
+      isOptionLocked = true;
+      const attemptNum = activeAttemptedOpts.size;
+
+      // Mark correct option and disable all
+      const optionButtons = document.querySelectorAll("#fc-options-container .mcq-option-btn");
+      optionButtons.forEach(btn => {
+        btn.disabled = true;
+        const bId = btn.getAttribute("data-opt-id");
+        if (bId === optId) {
+          btn.classList.add("opt-correct");
+        }
+      });
+
+      if (attemptBanner) {
+        attemptBanner.className = "fc-attempt-banner is-correct";
+        if (attemptNum === 1) {
+          attemptBanner.innerHTML = "<span>🎉 Correct on first attempt! Excellent recall.</span>";
+        } else {
+          attemptBanner.innerHTML = `<span>✓ Correct! (Solved on attempt ${attemptNum})</span>`;
+        }
+        attemptBanner.classList.remove("hidden");
+      }
+
+      // Save state as mastered
+      if (!fcState.decks[deckId]) fcState.decks[deckId] = { cards: {} };
+      fcState.decks[deckId].cards[card.id] = {
+        status: "mastered",
+        selectedOpt: optId,
+        attempts: Array.from(activeAttemptedOpts),
+        isCorrect: true,
+        updatedAt: Date.now()
+      };
+      saveFcState();
+
+      // Status badge
+      const statusEl = document.getElementById("fc-card-status");
+      if (statusEl) {
+        statusEl.textContent = "✅ Mastered";
+        statusEl.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800";
+      }
+
+      // Mastery stats & progress bar
+      const masteryStats = getDeckMasteryStats(deckId, currentDeck.cards.length);
+      const masteryStatEl = document.getElementById("fc-mastery-stat");
+      if (masteryStatEl) masteryStatEl.textContent = `${masteryStats.mastered} Mastered (${masteryStats.pct}%)`;
+      const progressBar = document.getElementById("fc-progress-bar");
+      if (progressBar) progressBar.style.width = `${masteryStats.pct}%`;
+
+      // Auto flip after 600ms
+      setTimeout(() => {
+        updateBackResultBanner("correct", attemptNum);
+        flipCard(true);
+      }, 600);
     }
-
-    // Update mastery stat and progress bar
-    const masteryStats = getDeckMasteryStats(deckId, currentDeck.cards.length);
-    const masteryStatEl = document.getElementById("fc-mastery-stat");
-    if (masteryStatEl) masteryStatEl.textContent = `${masteryStats.mastered} Mastered (${masteryStats.pct}%)`;
-    const progressBar = document.getElementById("fc-progress-bar");
-    if (progressBar) progressBar.style.width = `${masteryStats.pct}%`;
-
-    // Automatically flip to explanation after short delay
-    setTimeout(() => {
-      flipCard(true);
-    }, 450);
   }
 
   function flipCard(forceState) {
@@ -1324,6 +1634,7 @@
     fcState.decks[deckId].cards[card.id] = {
       ...currentRecord,
       status: status,
+      isCorrect: status === "mastered",
       updatedAt: Date.now()
     };
     saveFcState();
