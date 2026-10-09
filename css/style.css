@@ -702,3 +702,127 @@
   box-shadow: 0 2px 8px rgba(46, 160, 67, 0.35);
 }
 
+/* Sidebar Target Highlight System: Blink -> Hold Ring until interaction -> Slight Persistent Highlight */
+@keyframes sidebar-blink-light {
+  0% {
+    box-shadow: 0 0 0 4px #0969da, 0 0 26px rgba(9, 105, 218, 0.55);
+    border-color: #0969da;
+    transform: scale(1.012);
+  }
+  20% {
+    box-shadow: 0 0 0 1px rgba(9, 105, 218, 0.25), 0 0 6px rgba(9, 105, 218, 0.15);
+    transform: scale(1.0);
+  }
+  40% {
+    box-shadow: 0 0 0 4px #0969da, 0 0 26px rgba(9, 105, 218, 0.55);
+    border-color: #0969da;
+    transform: scale(1.012);
+  }
+  60% {
+    box-shadow: 0 0 0 1.5px rgba(9, 105, 218, 0.3), 0 0 8px rgba(9, 105, 218, 0.18);
+    transform: scale(1.0);
+  }
+  80% {
+    box-shadow: 0 0 0 4px #0969da, 0 0 22px rgba(9, 105, 218, 0.5);
+    border-color: #0969da;
+    transform: scale(1.008);
+  }
+  100% {
+    box-shadow: 0 0 0 3px #0969da, 0 0 18px rgba(9, 105, 218, 0.35);
+    border-color: #0969da;
+    transform: scale(1.0);
+  }
+}
+
+@keyframes sidebar-blink-dark {
+  0% {
+    box-shadow: 0 0 0 4px #58a6ff, 0 0 30px rgba(88, 166, 255, 0.65);
+    border-color: #58a6ff;
+    transform: scale(1.012);
+  }
+  20% {
+    box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.25), 0 0 6px rgba(88, 166, 255, 0.15);
+    transform: scale(1.0);
+  }
+  40% {
+    box-shadow: 0 0 0 4px #58a6ff, 0 0 30px rgba(88, 166, 255, 0.65);
+    border-color: #58a6ff;
+    transform: scale(1.012);
+  }
+  60% {
+    box-shadow: 0 0 0 1.5px rgba(88, 166, 255, 0.3), 0 0 8px rgba(88, 166, 255, 0.2);
+    transform: scale(1.0);
+  }
+  80% {
+    box-shadow: 0 0 0 4px #58a6ff, 0 0 24px rgba(88, 166, 255, 0.55);
+    border-color: #58a6ff;
+    transform: scale(1.008);
+  }
+  100% {
+    box-shadow: 0 0 0 3px #58a6ff, 0 0 20px rgba(88, 166, 255, 0.45);
+    border-color: #58a6ff;
+    transform: scale(1.0);
+  }
+}
+
+/* 1. Blink animation active class */
+.sidebar-highlight-active {
+  animation: sidebar-blink-light 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+  scroll-margin-top: 5.5rem;
+  position: relative;
+  z-index: 10;
+}
+.dark .sidebar-highlight-active {
+  animation: sidebar-blink-dark 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+
+/* 2. Prominent glowing ring held indefinitely until user interacts */
+.sidebar-highlight-ring {
+  box-shadow: 0 0 0 3px #0969da, 0 0 18px rgba(9, 105, 218, 0.35) !important;
+  border-color: #0969da !important;
+  scroll-margin-top: 5.5rem;
+  position: relative;
+  z-index: 10;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.dark .sidebar-highlight-ring {
+  box-shadow: 0 0 0 3px #58a6ff, 0 0 20px rgba(88, 166, 255, 0.45) !important;
+  border-color: #58a6ff !important;
+}
+
+/* 3. Subtle persistent highlight retained even after user interacts */
+.sidebar-highlight-subtle {
+  box-shadow: 0 0 0 2px rgba(9, 105, 218, 0.45), 0 2px 10px rgba(9, 105, 218, 0.08) !important;
+  border-color: rgba(9, 105, 218, 0.65) !important;
+  background-color: rgba(9, 105, 218, 0.035) !important;
+  scroll-margin-top: 5.5rem;
+  transition: box-shadow 0.4s ease, border-color 0.4s ease, background-color 0.4s ease;
+}
+.dark .sidebar-highlight-subtle {
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.45), 0 2px 12px rgba(88, 166, 255, 0.12) !important;
+  border-color: rgba(88, 166, 255, 0.6) !important;
+  background-color: rgba(56, 139, 253, 0.065) !important;
+}
+
+/* Backward compatibility */
+.glow-highlight {
+  animation: sidebar-blink-light 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+  scroll-margin-top: 5.5rem;
+}
+.dark .glow-highlight {
+  animation: sidebar-blink-dark 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+}
+
+.sidebar-flashcard-link {
+  transition: all 0.15s ease;
+}
+.sidebar-flashcard-link:hover {
+  background-color: #eaeef2;
+  color: #0969da;
+}
+.dark .sidebar-flashcard-link:hover {
+  background-color: #161b22;
+  color: #58a6ff;
+}
+
+

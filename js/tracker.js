@@ -128,7 +128,68 @@
     return { totalVideos, completedVideos, totalDuration, completedDuration, pctCount };
   }
 
-  // Handle sidebar navigation: auto-open details, glow pulse, scroll, and active indicator
+  let currentHighlightedEl = null;
+  let dismissHighlightListener = null;
+
+  function clearSidebarHighlight() {
+    if (dismissHighlightListener) {
+      document.removeEventListener("pointerdown", dismissHighlightListener, true);
+      document.removeEventListener("keydown", dismissHighlightListener, true);
+      dismissHighlightListener = null;
+    }
+    document.querySelectorAll(".sidebar-highlight-active, .sidebar-highlight-ring, .sidebar-highlight-subtle, .glow-highlight").forEach(el => {
+      el.classList.remove("sidebar-highlight-active", "sidebar-highlight-ring", "sidebar-highlight-subtle", "glow-highlight");
+    });
+    currentHighlightedEl = null;
+  }
+
+  function applySidebarHighlight(targetEl) {
+    if (!targetEl) return;
+
+    // Clear any previous highlight
+    clearSidebarHighlight();
+
+    currentHighlightedEl = targetEl;
+
+    // Force DOM reflow to cleanly restart the blink keyframe
+    void targetEl.offsetWidth;
+
+    // 1. Begin blink pulse and prominent glowing ring
+    targetEl.classList.add("sidebar-highlight-active", "sidebar-highlight-ring");
+
+    // After the blink animation completes (~1350ms), remove active blink class
+    // but KEEP .sidebar-highlight-ring so the glowing ring holds indefinitely until user interacts!
+    const blinkTimer = setTimeout(() => {
+      targetEl.classList.remove("sidebar-highlight-active");
+    }, 1350);
+
+    // 2. Attach user interaction listener to transition to subtle persistent highlight
+    // Grace period of 350ms ensures the click that opened the navigation doesn't instantly dismiss it
+    setTimeout(() => {
+      if (currentHighlightedEl !== targetEl) return;
+
+      dismissHighlightListener = (e) => {
+        // Clicks inside sidebar shouldn't dismiss the on-page ring
+        if (e.target && e.target.closest("#course-sidebar")) {
+          return;
+        }
+
+        clearTimeout(blinkTimer);
+        targetEl.classList.remove("sidebar-highlight-active", "sidebar-highlight-ring");
+        // Keep slight highlighted even after user interacts!
+        targetEl.classList.add("sidebar-highlight-subtle");
+
+        document.removeEventListener("pointerdown", dismissHighlightListener, true);
+        document.removeEventListener("keydown", dismissHighlightListener, true);
+        dismissHighlightListener = null;
+      };
+
+      document.addEventListener("pointerdown", dismissHighlightListener, true);
+      document.addEventListener("keydown", dismissHighlightListener, true);
+    }, 350);
+  }
+
+  // Handle sidebar navigation: auto-open details, blink + ring highlight, scroll, and active indicator
   function handleSidebarNavigation(targetId) {
     if (!targetId) return;
     const targetEl = document.getElementById(targetId);
@@ -146,19 +207,60 @@
     // 2. Smoothly scroll into center
     targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
 
-    // 3. Apply glow highlight with animation trigger
-    document.querySelectorAll(".glow-highlight").forEach(el => {
-      el.classList.remove("glow-highlight");
-    });
-    void targetEl.offsetWidth; // trigger reflow
-    targetEl.classList.add("glow-highlight");
-    setTimeout(() => {
-      targetEl.classList.remove("glow-highlight");
-    }, 2400);
+    // 3. Apply blink, indefinite ring, and subtle highlight on interaction
+    applySidebarHighlight(targetEl);
 
     // 4. Update active states in sidebar
-    const cleanId = targetId.startsWith("video-") ? targetId.replace("video-", "") : targetId;
-    updateActiveSidebarItem(cleanId);
+    if (targetId.startsWith("flashcards-")) {
+      const cleanFcId = targetId.replace("flashcards-", "");
+      updateActiveSidebarFlashcard(cleanFcId);
+    } else {
+      const cleanId = targetId.startsWith("video-") ? targetId.replace("video-", "") : targetId;
+      updateActiveSidebarItem(cleanId);
+    }
+  }
+
+  // Update active sidebar flashcard link
+  function updateActiveSidebarFlashcard(deckId) {
+    if (!deckId) return;
+    document.querySelectorAll(".sidebar-video-link").forEach(link => {
+      link.classList.remove("active-sidebar-item");
+    });
+    document.querySelectorAll(".sidebar-flashcard-link").forEach(link => {
+      link.classList.remove("active-sidebar-item");
+    });
+    document.querySelectorAll(".chapter-summary").forEach(sum => {
+      sum.classList.remove("active-chapter-header");
+    });
+
+    const activeFc = document.querySelector(`.sidebar-flashcard-link[data-sidebar-fc-deck="${deckId}"]`);
+    if (activeFc) {
+      activeFc.classList.add("active-sidebar-item");
+
+      // Highlight and expand parent chapter details if nested
+      const parentChap = activeFc.closest(".chapter-details");
+      if (parentChap) {
+        if (!parentChap.open) parentChap.open = true;
+        const sum = parentChap.querySelector(".chapter-summary");
+        if (sum) sum.classList.add("active-chapter-header");
+      }
+
+      // Ensure parent section details is open
+      const parentSec = activeFc.closest("aside#course-sidebar details");
+      if (parentSec && !parentSec.open) {
+        parentSec.open = true;
+      }
+
+      // Scroll sidebar container to keep active item in view if needed
+      const sidebarNav = document.getElementById("sidebar-nav-container");
+      if (sidebarNav) {
+        const linkRect = activeFc.getBoundingClientRect();
+        const navRect = sidebarNav.getBoundingClientRect();
+        if (linkRect.top < navRect.top || linkRect.bottom > navRect.bottom) {
+          activeFc.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }
+    }
   }
 
   // Update active sidebar link, chapter header, and parent details
@@ -167,6 +269,9 @@
 
     // Remove active styles from links and chapter headers
     document.querySelectorAll(".sidebar-video-link").forEach(link => {
+      link.classList.remove("active-sidebar-item");
+    });
+    document.querySelectorAll(".sidebar-flashcard-link").forEach(link => {
       link.classList.remove("active-sidebar-item");
     });
     document.querySelectorAll(".chapter-summary").forEach(sum => {
@@ -674,11 +779,11 @@
         }
       }
 
-      // Sidebar video link click delegation: smooth scroll, glow highlight, and active state
-      const sidebarVidLink = e.target.closest(".sidebar-video-link");
-      if (sidebarVidLink) {
-        const href = sidebarVidLink.getAttribute("href");
-        if (href && href.includes("#video-")) {
+      // Sidebar link click delegation (videos & flashcards): smooth scroll, blink + ring highlight, and active state
+      const sidebarNavTarget = e.target.closest(".sidebar-video-link, .sidebar-flashcard-link");
+      if (sidebarNavTarget) {
+        const href = sidebarNavTarget.getAttribute("href");
+        if (href && href.includes("#")) {
           const hashIndex = href.indexOf("#");
           const hashPart = href.substring(hashIndex);
           const targetId = hashPart.replace("#", "");
@@ -926,7 +1031,7 @@
     // Initial hash handling on page load (auto opens parent chapter, scrolls, and glows)
     if (window.location.hash) {
       const initialHash = window.location.hash.replace("#", "");
-      if (initialHash.startsWith("video-")) {
+      if (initialHash.startsWith("video-") || initialHash.startsWith("flashcards-")) {
         setTimeout(() => {
           handleSidebarNavigation(initialHash);
         }, 200);
@@ -937,7 +1042,7 @@
     window.addEventListener("hashchange", () => {
       if (window.location.hash) {
         const hash = window.location.hash.replace("#", "");
-        if (hash.startsWith("video-")) {
+        if (hash.startsWith("video-") || hash.startsWith("flashcards-")) {
           handleSidebarNavigation(hash);
         }
       }
@@ -1779,6 +1884,9 @@
     getPartStats,
     handleSidebarNavigation,
     updateActiveSidebarItem,
+    updateActiveSidebarFlashcard,
+    applySidebarHighlight,
+    clearSidebarHighlight,
     syncUI,
     exportProgressJSON,
     resetAllProgress,
