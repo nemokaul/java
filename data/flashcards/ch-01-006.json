@@ -1,0 +1,274 @@
+{
+  "deckId": "ch-01-006",
+  "title": "§01-006: Effective Java Core Patterns",
+  "chapterId": "01-006",
+  "sectionId": "section-01",
+  "description": "Static factory methods, Builder pattern, Singleton enforcement, noninstantiable classes, and object lifecycle best practices.",
+  "totalCards": 8,
+  "cards": [
+    {
+      "id": "mcq-01-006-01",
+      "concept": "Static Factory Methods vs Constructors",
+      "category": "Creational Patterns",
+      "difficulty": "Beginner",
+      "question": "According to Joshua Bloch (Effective Java Item 1), what is a major advantage of static factory methods over public constructors?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Static factories run on dedicated background threads.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Unlike constructors, static factories have meaningful names, can return cached instances, and can return any subtype of their return type.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Static factories eliminate all garbage collection overhead.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Static factories allow overriding in subclasses.",
+          "correct": false
+        }
+      ],
+      "explanation": "Constructors are constrained by having the same name as the class and cannot convey intent cleanly when multiple constructors have identical parameter types. Static factories (e.g. `BigInteger.probablePrime()`, `List.of()`, `Boolean.valueOf()`) have descriptive names, can return pre-cached immutable instances, and can return unexported subtypes.",
+      "codeSnippet": "// Descriptive names and instance caching:\npublic static Boolean valueOf(boolean b) {\n    return b ? Boolean.TRUE : Boolean.FALSE;\n}\n\n// Subtype flexibility:\npublic static List<T> of(T... elements) {\n    return elements.length == 0 ? Collections.emptyList() : new ImmutableList<>(elements);\n}",
+      "pitfall": "Classes without public or protected constructors cannot be subclassed. While often desirable (favoring composition), it prevents inheritance if external extension was intended.",
+      "citation": "Effective Java (Bloch) Item 1: Consider static factory methods instead of constructors"
+    },
+    {
+      "id": "mcq-01-006-02",
+      "concept": "The Builder Pattern for Many Parameters",
+      "category": "Creational Patterns",
+      "difficulty": "Beginner",
+      "question": "When should the Builder pattern be favored over telescoping constructors or JavaBeans setters?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Only when the class has fewer than two fields.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "When a class has many constructor parameters (especially optional or identically-typed fields), combining constructor safety with fluent readability.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "When performance requires mutating static variables.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Only when building GUI components with Swing.",
+          "correct": false
+        }
+      ],
+      "explanation": "Telescoping constructors become unreadable and error-prone when many parameters share types. The JavaBeans pattern (parameterless constructor + setters) allows objects to exist in an inconsistent intermediate state and precludes immutability. The Builder pattern provides fluent, named parameter simulation while creating an immutable object in a single `build()` step.",
+      "codeSnippet": "NutritionFacts cocaCola = new NutritionFacts.Builder(240, 8) // Required\n        .calories(100)                                       // Optional\n        .sodium(35)\n        .carbohydrate(27)\n        .build();",
+      "pitfall": "Builders have a small object creation cost for the builder itself. For simple classes with only 1-3 mandatory fields, standard constructors or records are simpler.",
+      "citation": "Effective Java (Bloch) Item 2: Consider a builder when faced with many constructor parameters"
+    },
+    {
+      "id": "mcq-01-006-03",
+      "concept": "Singleton via Single-Element Enum",
+      "category": "Creational Patterns",
+      "difficulty": "Intermediate",
+      "question": "Why does Joshua Bloch consider a single-element `enum` the best way to implement a Singleton in Java?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Enums use less CPU cache memory than standard classes.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "It provides ironclad guarantees against multiple instantiation, even in the face of sophisticated serialization or reflection attacks.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Enums allow dynamic hot-reloading without restarting the JVM.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Enums can extend arbitrary base classes.",
+          "correct": false
+        }
+      ],
+      "explanation": "Traditional singletons require complex `readResolve` methods to prevent deserialization from creating duplicate instances, and are vulnerable to reflection attacks via `Constructor.setAccessible(true)`. The JVM natively guarantees that enum constants are instantiated exactly once and prohibits reflective constructor instantiation.",
+      "codeSnippet": "public enum Elvis {\n    INSTANCE;\n\n    public void leaveTheBuilding() {\n        System.out.println(\"Elvis has left the building!\");\n    }\n}\n\n// Usage:\nElvis.INSTANCE.leaveTheBuilding();",
+      "pitfall": "You cannot use an enum singleton if your singleton must extend a superclass other than `java.lang.Enum` (though it can implement arbitrary interfaces).",
+      "citation": "Effective Java (Bloch) Item 3: Enforce the singleton property with a private constructor or an enum type"
+    },
+    {
+      "id": "mcq-01-006-04",
+      "concept": "Noninstantiable Utility Classes",
+      "category": "OOP Design",
+      "difficulty": "Beginner",
+      "question": "How should utility classes composed purely of static methods (e.g. `java.lang.Math`, `java.util.Collections`) be designed to prevent instantiation?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Declare the class `abstract`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Suppress the default constructor with an explicit private constructor that throws an `AssertionError`.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Do not declare any constructors in the source code.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Annotate the class with `@Transient`.",
+          "correct": false
+        }
+      ],
+      "explanation": "If no constructor is declared, `javac` automatically generates a public parameterless default constructor. Making the class `abstract` is misleading because it implies the class is meant to be subclassed. A private constructor prevents external instantiation and subclassing; throwing `AssertionError` inside guards against accidental internal/reflective calls.",
+      "codeSnippet": "public final class StringUtils {\n    // Suppress default constructor for noninstantiability\n    private StringUtils() {\n        throw new AssertionError(\"No StringUtils instances for you!\");\n    }\n\n    public static boolean isBlank(String s) { return s == null || s.isBlank(); }\n}",
+      "pitfall": "Making a utility class `abstract` does NOT prevent instantiation: a client can simply subclass it and instantiate the subclass.",
+      "citation": "Effective Java (Bloch) Item 4: Enforce noninstantiability with a private constructor"
+    },
+    {
+      "id": "mcq-01-006-05",
+      "concept": "Dependency Injection over Hardcoded Resources",
+      "category": "Architectural Patterns",
+      "difficulty": "Beginner",
+      "question": "Why does Effective Java Item 5 advise against utility classes or singletons for classes whose behavior depends on underlying resources (like a dictionary or database)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Singletons cannot be executed on multi-core processors.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Hardcoding the resource prevents flexibility, reusability, and unit testing with mock implementations.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Dependency injection reduces bytecode size by 50%.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It causes memory fragmentation in the Metaspace.",
+          "correct": false
+        }
+      ],
+      "explanation": "Classes that depend on one or more underlying resources whose behavior affects that of the class should not use singletons or static utility classes. Instead, pass the resources (or factories to create them) into the constructor. This is the cornerstone of Dependency Injection (DI) and clean testability.",
+      "codeSnippet": "// Bad: Hardcoded resource singleton\npublic class SpellChecker {\n    private static final Lexicon dictionary = new EnglishDictionary();\n}\n\n// Good: Dependency injection\npublic class SpellChecker {\n    private final Lexicon dictionary;\n    public SpellChecker(Lexicon dictionary) {\n        this.dictionary = Objects.requireNonNull(dictionary);\n    }\n}",
+      "pitfall": "Hardcoding dependencies inside a class tightly couples your code to specific implementations and makes parallel unit testing impossible.",
+      "citation": "Effective Java (Bloch) Item 5: Prefer dependency injection to hardwiring resources"
+    },
+    {
+      "id": "mcq-01-006-06",
+      "concept": "Reusing Expensive Objects (Regex Pattern)",
+      "category": "Performance & Memory",
+      "difficulty": "Intermediate",
+      "question": "Why should `String.matches(regex)` be avoided in performance-critical loops?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`String.matches` only supports ASCII characters.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`String.matches` compiles a new `java.util.regex.Pattern` instance on every invocation, creating heavy garbage and repetitive finite-state machine compilation overhead.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`String.matches` executes synchronously on the OS file thread.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`String.matches` throws a checked `ParseException`.",
+          "correct": false
+        }
+      ],
+      "explanation": "Internally, `String.matches(regex)` executes `Pattern.compile(regex).matcher(this).matches()`. Compiling a regular expression compiles a state machine and is computationally expensive. Reusing an immutable, precompiled `static final Pattern` yields massive speedups.",
+      "codeSnippet": "// BAD (Compiles a new Pattern on every call):\nstatic boolean isRoman(String s) {\n    return s.matches(\"^(?=.)M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$\");\n}\n\n// GOOD (Reuses compiled Pattern):\nprivate static final Pattern ROMAN = Pattern.compile(\n    \"^(?=.)M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$\");\n\nstatic boolean isRomanFast(String s) {\n    return ROMAN.matcher(s).matches();\n}",
+      "pitfall": "Repeatedly compiling regular expressions in loops or high-frequency web request filters can degrade application throughput by 5x-10x.",
+      "citation": "Effective Java (Bloch) Item 6: Avoid creating unnecessary objects"
+    },
+    {
+      "id": "mcq-01-006-07",
+      "concept": "Memory Leaks via Obsolete Object References",
+      "category": "Performance & Memory",
+      "difficulty": "Intermediate",
+      "question": "In a custom stack implementation backed by an array `Object[] elements`, why must the `pop()` method null out `elements[size]`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "To prevent the JVM from throwing an `ArrayIndexOutOfBoundsException`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "An obsolete reference remaining in the array keeps the object reachable, preventing the garbage collector from reclaiming it (a memory leak / loitering).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Because Java requires array elements to be null before downsizing.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "To notify the CPU cache that the pointer is invalid.",
+          "correct": false
+        }
+      ],
+      "explanation": "Whenever a class manages its own memory (like an array-based stack or cache), elements outside the logical active size remain strongly reachable through the backing array if not cleared. Setting `elements[size] = null` eliminates the obsolete reference so the GC can reclaim the object.",
+      "codeSnippet": "public Object pop() {\n    if (size == 0) throw new EmptyStackException();\n    Object result = elements[--size];\n    elements[size] = null; // Eliminate obsolete reference!\n    return result;\n}",
+      "pitfall": "Over-nulling: do not null out every local variable. Clearing references should only be done when a class manages its own storage or retains references past their logical scope.",
+      "citation": "Effective Java (Bloch) Item 7: Eliminate obsolete object references"
+    },
+    {
+      "id": "mcq-01-006-08",
+      "concept": "Avoid Finalizers and Cleaners",
+      "category": "Resource Management",
+      "difficulty": "Intermediate",
+      "question": "Why should `finalize()` (deprecated) and `Cleaner` be avoided for general resource reclamation in Java?",
+      "options": [
+        {
+          "id": "A",
+          "text": "They run on the main UI thread and block user interaction.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Their execution timing is completely prompt-less and arbitrary; the JVM makes no guarantee they will ever run before the application terminates.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "They can only clean up native C memory allocated via JNI.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "They disable garbage collection on the entire heap.",
+          "correct": false
+        }
+      ],
+      "explanation": "Finalizers and cleaners provide zero guarantees of prompt execution. Relying on them to close files or release database connections will rapidly exhaust OS file descriptors. Always use `AutoCloseable` with try-with-resources. Cleaners are suitable only as a safety net of last resort.",
+      "codeSnippet": "// PROPER RESOURCE CLEANUP:\npublic class Room implements AutoCloseable {\n    @Override\n    public void close() {\n        // Guaranteed immediate prompt cleanup!\n        cleanUpNativeResources();\n    }\n}",
+      "pitfall": "Writing resource cleanups in `finalize()` can allow 'finalizer resurrection' attacks where half-instantiated broken objects resurrect themselves.",
+      "citation": "Effective Java (Bloch) Item 8: Avoid finalizers and cleaners"
+    }
+  ]
+}

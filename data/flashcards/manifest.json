@@ -1,0 +1,70 @@
+{
+  "sectionId": "section-01",
+  "totalDecks": 9,
+  "totalCards": 62,
+  "decks": [
+    {
+      "deckId": "ch-01-001",
+      "title": "§01-001: JDK Toolchain & JVM Architecture",
+      "chapterId": "01-001",
+      "totalCards": 8,
+      "url": "/data/flashcards/ch-01-001.json"
+    },
+    {
+      "deckId": "ch-01-002",
+      "title": "§01-002: Java Syntax & OOP Fundamentals",
+      "chapterId": "01-002",
+      "totalCards": 8,
+      "url": "/data/flashcards/ch-01-002.json"
+    },
+    {
+      "deckId": "ch-01-003",
+      "title": "§01-003: Exceptions, Errors & Failure Atomicity",
+      "chapterId": "01-003",
+      "totalCards": 8,
+      "url": "/data/flashcards/ch-01-003.json"
+    },
+    {
+      "deckId": "ch-01-004",
+      "title": "§01-004: Equality, Hashing & Immutability",
+      "chapterId": "01-004",
+      "totalCards": 8,
+      "url": "/data/flashcards/ch-01-004.json"
+    },
+    {
+      "deckId": "ch-01-005",
+      "title": "§01-005: I/O, NIO.2 & Java Module System",
+      "chapterId": "01-005",
+      "totalCards": 8,
+      "url": "/data/flashcards/ch-01-005.json"
+    },
+    {
+      "deckId": "ch-01-006",
+      "title": "§01-006: Effective Java Core Patterns",
+      "chapterId": "01-006",
+      "totalCards": 8,
+      "url": "/data/flashcards/ch-01-006.json"
+    },
+    {
+      "deckId": "ch-01-007",
+      "title": "§01-007: Maven Project Structure & JUnit 5 Testing",
+      "chapterId": "01-007",
+      "totalCards": 8,
+      "url": "/data/flashcards/ch-01-007.json"
+    },
+    {
+      "deckId": "ch-01-008",
+      "title": "§01-008: Serialization, Enums & Residual Review",
+      "chapterId": "01-008",
+      "totalCards": 6,
+      "url": "/data/flashcards/ch-01-008.json"
+    },
+    {
+      "deckId": "section-01",
+      "title": "Section 01: Complete JVM & Java Fundamentals Review Deck",
+      "chapterId": "all",
+      "totalCards": 62,
+      "url": "/data/flashcards/section-01.json"
+    }
+  ]
+}

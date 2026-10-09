@@ -1,0 +1,274 @@
+{
+  "deckId": "ch-01-007",
+  "title": "§01-007: Maven Project Structure & JUnit 5 Testing",
+  "chapterId": "01-007",
+  "sectionId": "section-01",
+  "description": "Standard directory layout, build lifecycle phases, dependency scopes, JUnit 5 Jupiter architecture, and assertions.",
+  "totalCards": 8,
+  "cards": [
+    {
+      "id": "mcq-01-007-01",
+      "concept": "Maven Standard Directory Layout",
+      "category": "Build Tools",
+      "difficulty": "Beginner",
+      "question": "In the Apache Maven standard directory layout, where should production Java source files be located?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`src/java`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`src/main/java`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`app/sources`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`target/classes`",
+          "correct": false
+        }
+      ],
+      "explanation": "Convention over configuration: Maven strictly expects production Java source files in `src/main/java`, application resources in `src/main/resources`, unit test sources in `src/test/java`, and test resources in `src/test/resources`.",
+      "codeSnippet": "my-project/\n├── pom.xml\n└── src/\n    ├── main/\n    │   ├── java/        <- Production Java source code\n    │   └── resources/   <- Production config (application.yml)\n    └── test/\n        ├── java/        <- Test Java source code\n        └── resources/   <- Test fixtures",
+      "pitfall": "Placing resource files (like XML, JSON, or properties) inside `src/main/java` without explicit `<resources>` filters in `pom.xml` means Maven will ignore them and not copy them to `target/classes`.",
+      "citation": "Introduction to Maven (Jenkins) / Create an Enterprise-Level Test Automation Framework (Das) Ch. 2"
+    },
+    {
+      "id": "mcq-01-007-02",
+      "concept": "Maven Build Lifecycle Execution Order",
+      "category": "Build Tools",
+      "difficulty": "Beginner",
+      "question": "When running the command `mvn package`, which phase executes immediately before `package` in the default build lifecycle?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`clean`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`test`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`deploy`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`validate`",
+          "correct": false
+        }
+      ],
+      "explanation": "The default lifecycle phases execute sequentially: `validate` -> `compile` -> `test` -> `package` -> `verify` -> `install` -> `deploy`. When you invoke `mvn package`, Maven automatically runs all prior phases (including compiling code and executing unit tests).",
+      "codeSnippet": "% mvn package\n[INFO] --- maven-resources-plugin: resources ---\n[INFO] --- maven-compiler-plugin: compile ---\n[INFO] --- maven-surefire-plugin: test ---\n[INFO] --- maven-jar-plugin: jar (package) ---",
+      "pitfall": "Running `mvn package -DskipTests` bypasses test execution, which risks packaging broken code into deployable artifacts.",
+      "citation": "Apache Maven Build Lifecycle Specification"
+    },
+    {
+      "id": "mcq-01-007-03",
+      "concept": "Maven Dependency Scopes",
+      "category": "Build Tools",
+      "difficulty": "Intermediate",
+      "question": "Which dependency `<scope>` should be declared for testing libraries (like JUnit 5 or Mockito) so they are excluded from the packaged production JAR/WAR?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`provided`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`compile`",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`test`",
+          "correct": true
+        },
+        {
+          "id": "D",
+          "text": "`runtime`",
+          "correct": false
+        }
+      ],
+      "explanation": "`test` scope dependencies are available only for test compilation and test execution. They are not transitive and are never bundled into the production package created by `mvn package`.",
+      "codeSnippet": "<dependency>\n    <groupId>org.junit.jupiter</groupId>\n    <artifactId>junit-jupiter</artifactId>\n    <version>5.10.2</version>\n    <scope>test</scope> <!-- Excluded from production artifact -->\n</dependency>",
+      "pitfall": "Omitting the `<scope>test</scope>` tag defaults the dependency to `compile` scope, needlessly bloating production JAR/WAR files with test frameworks.",
+      "citation": "Maven Dependency Mechanism: Dependency Scopes"
+    },
+    {
+      "id": "mcq-01-007-04",
+      "concept": "Dependency Management vs Dependencies",
+      "category": "Build Tools",
+      "difficulty": "Intermediate",
+      "question": "What is the primary function of the `<dependencyManagement>` section in a parent Maven POM?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It immediately downloads and includes all declared artifacts in every child project.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "It defines and centralizes dependency versions and configurations without actually adding them to the dependency tree until child POMs reference them.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It deletes conflicting JARs from the local `.m2` repository.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It converts Maven projects to Gradle builds.",
+          "correct": false
+        }
+      ],
+      "explanation": "`<dependencyManagement>` is a lookup table for dependency versions. Child modules inherit these versions and only need to specify `<groupId>` and `<artifactId>`, avoiding version fragmentation across multi-module enterprise repositories.",
+      "codeSnippet": "<!-- In Parent POM: -->\n<dependencyManagement>\n    <dependencies>\n        <dependency>\n            <groupId>org.slf4j</groupId>\n            <artifactId>slf4j-api</artifactId>\n            <version>2.0.12</version>\n        </dependency>\n    </dependencies>\n</dependencyManagement>\n\n<!-- In Child POM (no version required): -->\n<dependencies>\n    <dependency>\n        <groupId>org.slf4j</groupId>\n        <artifactId>slf4j-api</artifactId>\n    </dependency>\n</dependencies>",
+      "pitfall": "Adding dependencies directly under `<dependencies>` in a parent POM forces every single child module to inherit that dependency, even if they don't need it.",
+      "citation": "Apache Maven Documentation: Dependency Management"
+    },
+    {
+      "id": "mcq-01-007-05",
+      "concept": "JUnit 5 Architecture & Packages",
+      "category": "Testing",
+      "difficulty": "Beginner",
+      "question": "What is the core API package and annotation used to declare a test method in JUnit 5 (Jupiter)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`org.junit.Test`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`org.junit.jupiter.api.Test`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`junit.framework.TestCase`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`org.testng.annotations.Test`",
+          "correct": false
+        }
+      ],
+      "explanation": "JUnit 5 is modularized into Jupiter (API & Engine), Vintage (JUnit 3/4 runner), and Platform. Test annotations reside in `org.junit.jupiter.api.*`. Methods annotated with `@Test` in JUnit 5 do not need to be `public` (package-private is preferred).",
+      "codeSnippet": "package com.example;\n\nimport org.junit.jupiter.api.Test;\nimport static org.junit.jupiter.api.Assertions.assertEquals;\n\nclass CalculatorTest {\n    @Test\n    void addsTwoNumbers() { // Package-private is idiomatic in JUnit 5!\n        assertEquals(4, 2 + 2);\n    }\n}",
+      "pitfall": "Accidentally importing `org.junit.Test` (JUnit 4) instead of `org.junit.jupiter.api.Test` in a JUnit 5 project will cause tests to be skipped unless the Vintage engine is present.",
+      "citation": "Complete Guide to Java Testing with JUnit 5 & Mockito (van Putten)"
+    },
+    {
+      "id": "mcq-01-007-06",
+      "concept": "JUnit 5 Grouped Assertions (assertAll)",
+      "category": "Testing",
+      "difficulty": "Intermediate",
+      "question": "Why should `assertAll()` be preferred over multiple sequential `assertEquals()` statements when validating multiple properties on an object?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`assertAll()` executes the assertions in separate OS processes for speed.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Sequential assertions fail-fast on the first failure (hiding subsequent failures), whereas `assertAll` executes all assertions and reports all failures together.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`assertAll()` automatically generates test mocks.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`assertAll()` bypasses private member access checks.",
+          "correct": false
+        }
+      ],
+      "explanation": "If you have 4 sequential assertions and the 1st fails, the remaining 3 are never executed, creating a tedious game of whack-a-mole during debugging. `assertAll()` accepts lambdas, executes all assertions regardless of failures, and prints a comprehensive consolidated failure report.",
+      "codeSnippet": "@Test\nvoid validateUser() {\n    User user = new User(\"Alice\", \"Smith\", 30);\n\n    assertAll(\"user verification\",\n        () -> assertEquals(\"Alice\", user.getFirstName()),\n        () -> assertEquals(\"Smith\", user.getLastName()),\n        () -> assertEquals(30, user.getAge())\n    );\n}",
+      "pitfall": "Don't place dependencies between assertions inside `assertAll()`. If assertion 2 depends on assertion 1 not being null, use an explicit initial check.",
+      "citation": "JUnit 5 User Guide §Assertions / Test Automation Framework (Das) Ch. 3"
+    },
+    {
+      "id": "mcq-01-007-07",
+      "concept": "Testing Exceptions with assertThrows",
+      "category": "Testing",
+      "difficulty": "Beginner",
+      "question": "How should an expected exception be verified in JUnit 5?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`@Test(expected = IllegalArgumentException.class)` on the method annotation.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`assertThrows(IllegalArgumentException.class, () -> service.process(-1))`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Wrapping the code in a manual `try-catch` with a `fail()` call.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`@ExpectedException(IllegalArgumentException.class)`",
+          "correct": false
+        }
+      ],
+      "explanation": "JUnit 5 deprecated the JUnit 4 `@Test(expected = ...)` attribute in favor of `assertThrows()`. It takes the expected exception class and an executable lambda, and returns the caught exception instance so you can further assert on its message or error codes.",
+      "codeSnippet": "@Test\nvoid throwsOnNegativeDeposit() {\n    Account account = new Account();\n\n    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {\n        account.deposit(BigDecimal.valueOf(-50));\n    });\n\n    assertEquals(\"Deposit cannot be negative\", ex.getMessage());\n}",
+      "pitfall": "`assertThrows` asserts on exact type or subclasses. If the method throws a different exception or no exception at all, the assertion fails.",
+      "citation": "JUnit 5 User Guide: Exception Testing"
+    },
+    {
+      "id": "mcq-01-007-08",
+      "concept": "JUnit 5 Test Lifecycle Hooks",
+      "category": "Testing",
+      "difficulty": "Intermediate",
+      "question": "What lifecycle hook in JUnit 5 executes once before all test methods in a class, and what requirement does it have by default?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`@Before`, and it must be package-private.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`@BeforeAll`, and it must be annotated on a `static` method by default.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`@SetupClass`, and it must return a boolean.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`@PreTest`, and it must take an `ApplicationContext` argument.",
+          "correct": false
+        }
+      ],
+      "explanation": "`@BeforeAll` runs once before any `@Test` methods execute in the test class. Under the default lifecycle (`Lifecycle.PER_METHOD`), the test class instance is recreated for each test method; hence `@BeforeAll` methods must be `static` unless `@TestInstance(Lifecycle.PER_CLASS)` is configured.",
+      "codeSnippet": "class DatabaseTest {\n    @BeforeAll\n    static void startContainer() {\n        // Runs once for the entire class\n        dbContainer.start();\n    }\n\n    @BeforeEach\n    void cleanTables() {\n        // Runs before EACH test method\n        db.clear();\n    }\n}",
+      "pitfall": "Declaring a non-static `@BeforeAll` method without `@TestInstance(Lifecycle.PER_CLASS)` will throw a JUnitConfigurationException at runtime.",
+      "citation": "JUnit 5 User Guide: Test Lifecycle"
+    }
+  ]
+}

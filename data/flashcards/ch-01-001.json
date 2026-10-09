@@ -1,0 +1,274 @@
+{
+  "deckId": "ch-01-001",
+  "title": "§01-001: JDK Toolchain & JVM Architecture",
+  "chapterId": "01-001",
+  "sectionId": "section-01",
+  "description": "Bytecode compilation, JVM stack architecture, classpath resolution, classloading, and CLI utilities.",
+  "totalCards": 8,
+  "cards": [
+    {
+      "id": "mcq-01-001-01",
+      "concept": "Java Bytecode Compilation",
+      "category": "CLI & Toolchain",
+      "difficulty": "Beginner",
+      "question": "What is the primary output of the `javac` compiler when processing a `.java` source file?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Native assembly code targeted specifically to the host CPU architecture (x86_64 / ARM64).",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Platform-independent intermediate bytecode encapsulated within `.class` binary files.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "A pre-linked executable binary package ready for direct operating system execution.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "An optimized Abstract Syntax Tree (AST) stored directly in system memory.",
+          "correct": false
+        }
+      ],
+      "explanation": "The `javac` compiler converts human-readable Java source text into platform-independent JVM bytecode stored in `.class` files. The JVM at runtime translates this bytecode into host machine instructions using interpreter and JIT compilers.",
+      "codeSnippet": "% javac Bluebird.java\n% ls\nBluebird.class  Bluebird.java\n% javap -c Bluebird.class\nCompiled from \"Bluebird.java\"\npublic class Bluebird {\n  public static void main(java.lang.String[]);\n    Code:\n       0: getstatic     #7 // Field java/lang/System.out\n       3: ldc           #13 // String Hello\n       5: invokevirtual #19 // Method println\n       8: return\n}",
+      "pitfall": "Bytecode is not machine code. A `.class` file cannot execute directly on hardware; it requires a platform-specific JVM runtime (HotSpot, OpenJ9, etc.).",
+      "citation": "Oracle JVM SE 21 Specification §2.5 / Learning Java (Loy et al.) Ch. 1"
+    },
+    {
+      "id": "mcq-01-001-02",
+      "concept": "Class Literal vs Class.forName Initialization",
+      "category": "Classloading",
+      "difficulty": "Intermediate",
+      "question": "Given class `Helper` with a static initializer `static { System.out.println(\"init\"); }`, what happens when `Class<?> c = Helper.class;` executes?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The static initializer runs immediately and prints \"init\".",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The JVM loads and links the class, but initialization is deferred until first active use.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "A `ClassNotFoundException` is thrown unless an instance of `Helper` already exists on the heap.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The JVM instantiates a default null instance of `Helper` in the young generation.",
+          "correct": false
+        }
+      ],
+      "explanation": "Evaluating a class literal (`Helper.class`) causes the classloader to load and verify the class, but does NOT trigger initialization (running <clinit>). Initialization is deferred until the first active use (instantiation, static method call, or non-constant static field access) per JLS §12.4.1.",
+      "codeSnippet": "public class Demo {\n    public static void main(String[] args) {\n        System.out.println(\"Before literal\");\n        Class<?> c = Helper.class; // <clinit> does NOT run here\n        System.out.println(\"Loaded: \" + c.getName());\n        new Helper(); // NOW <clinit> runs!\n    }\n}\nclass Helper {\n    static { System.out.println(\"Helper initialized!\"); }\n}",
+      "pitfall": "`Class.forName(\"Helper\")` initializes the class by default, whereas `Helper.class` does not. Pass `false` as the initialize argument (`Class.forName(\"Helper\", false, loader)`) if you want lazy initialization.",
+      "citation": "Java Language Specification (JLS) SE 21 §12.4.1 / Java Web Internals (Massetto) Ch. 2"
+    },
+    {
+      "id": "mcq-01-001-03",
+      "concept": "Classpath Wildcard Resolution",
+      "category": "CLI & Toolchain",
+      "difficulty": "Intermediate",
+      "question": "When launching a Java application using `-cp \"lib/*:target/classes\"`, what does the wildcard `lib/*` match?",
+      "options": [
+        {
+          "id": "A",
+          "text": "All files inside the `lib` directory, including `.jar`, `.class`, `.zip`, and `.properties` files.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Only `.jar` files in `lib`; loose `.class` files in `lib` and files in subdirectories are NOT included.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "All `.jar` and `.class` files recursively across `lib` and all its subfolders.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Only the single JAR file whose name matches the package name of the main class.",
+          "correct": false
+        }
+      ],
+      "explanation": "According to the Java tools specification, a classpath wildcard ending in `*` expands to match all files in the directory with the extension `.jar` or `.JAR`. It does not match loose `.class` files, and it does not search subdirectories recursively.",
+      "codeSnippet": "# Correct: includes all JARs in lib directory and classes in target\njava -cp \"lib/*:target/classes\" com.example.Application\n\n# Note: To include loose class files in lib/, specify lib itself:\njava -cp \"lib:lib/*:target/classes\" com.example.Application",
+      "pitfall": "Placing loose `.class` files in a directory matched by `*` will lead to `NoClassDefFoundError` or `ClassNotFoundException`. Directories containing loose classes must be added by directory path without the trailing `*`.",
+      "citation": "Oracle JDK 21 Tool Specifications: javac & java Options"
+    },
+    {
+      "id": "mcq-01-001-04",
+      "concept": "Single-File Source-Code Execution",
+      "category": "CLI & Toolchain",
+      "difficulty": "Beginner",
+      "question": "Since Java 11, how can a developer execute a standalone source file `Server.java` without running `javac` first?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`jshell --run Server.java`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`java Server.java` directly in the terminal.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`javap -run Server.java`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`jlink --source Server.java`",
+          "correct": false
+        }
+      ],
+      "explanation": "JEP 330 (Java 11+) added single-file source-code launcher support. Running `java Server.java` compiles the code in memory and immediately executes the `main` method without writing a `.class` file to disk.",
+      "codeSnippet": "# Run single file directly without prior compilation:\n% java Server.java\nServer listening on port 8080\n\n# You can also pass arguments directly:\n% java Server.java --port=9090",
+      "pitfall": "Single-file mode only works when all referenced source code is in the single file or already compiled on the classpath/module-path. It cannot compile multiple uncompiled `.java` files simultaneously without `javac`.",
+      "citation": "Oracle Java SE 21 Tools: Source-File Mode (JEP 330)"
+    },
+    {
+      "id": "mcq-01-001-05",
+      "concept": "JVM Generational Heap Structure",
+      "category": "JVM Memory",
+      "difficulty": "Intermediate",
+      "question": "In the HotSpot JVM generational heap, where are newly instantiated objects allocated by default?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Directly in the Old (Tenured) Generation.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "In the Eden space within the Young Generation.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "In Metaspace native memory.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "In the Survivor 1 (To-Space) buffer.",
+          "correct": false
+        }
+      ],
+      "explanation": "Based on the Weak Generational Hypothesis (most objects die young), the JVM allocates new objects in the Eden space of the Young Generation. During Minor GC, surviving objects are copied between Survivor spaces (S0/S1) before being promoted to Tenured/Old generation once they cross the aging threshold.",
+      "codeSnippet": "# Inspect GC allocation and generation ergonomics:\njava -XX:+PrintFlagsFinal -version | grep -i survivor\n# Key flags:\n# -XX:NewRatio=2 (Old:Young ratio)\n# -XX:SurvivorRatio=8 (Eden:Survivor ratio)\n# -XX:MaxTenuringThreshold=15",
+      "pitfall": "Exceptionally large objects (arrays exceeding the pre-tenure size threshold) may bypass Eden entirely and be allocated directly into Old Generation to avoid expensive copying in Young Gen.",
+      "citation": "Oracle HotSpot Virtual Machine Garbage Collection Tuning Guide §Generations"
+    },
+    {
+      "id": "mcq-01-001-06",
+      "concept": "Metaspace vs Heap Memory",
+      "category": "JVM Memory",
+      "difficulty": "Intermediate",
+      "question": "Where is class metadata (bytecode, method tables, constant pools) stored in modern Java (Java 8+)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "In the Permanent Generation (PermGen) inside the managed Java heap.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "In Metaspace, which resides in off-heap native memory.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "On the thread execution call stack.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Directly in the CPU L3 hardware cache.",
+          "correct": false
+        }
+      ],
+      "explanation": "PermGen was permanently removed in Java 8 and replaced with Metaspace. Metaspace stores class runtime representations in native memory outside the Java heap. By default, it auto-increases its size up to available OS memory unless bounded by `-XX:MaxMetaspaceSize`.",
+      "codeSnippet": "# Limit maximum Metaspace allocation to prevent runaway native leaks:\njava -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=256m -jar app.jar",
+      "pitfall": "Dynamic class generation (e.g. CGLIB proxies, bytecode enhancers, uncollected classloaders in hot redeployment) can still exhaust native memory, triggering `java.lang.OutOfMemoryError: Metaspace`.",
+      "citation": "Oracle HotSpot GC Tuning: Other Considerations (Metaspace)"
+    },
+    {
+      "id": "mcq-01-001-07",
+      "concept": "Diagnostic Heap Dump Generation",
+      "category": "Diagnostics & CLI",
+      "difficulty": "Intermediate",
+      "question": "Which JVM flag instructs the HotSpot runtime to automatically write a memory dump to disk when an `OutOfMemoryError` occurs?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`-XX:+EnableMemorySnapshot`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`-XX:+HeapDumpOnOutOfMemoryError`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`-Xdump:heap=auto`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`-XX:+AutoCrashDiagnostics`",
+          "correct": false
+        }
+      ],
+      "explanation": "The standard production flag `-XX:+HeapDumpOnOutOfMemoryError` tells the JVM to write an HPROF format heap dump snapshot immediately when an OutOfMemoryError is thrown. Combined with `-XX:HeapDumpPath=/path`, it guarantees post-mortem analysis data.",
+      "codeSnippet": "# Recommended production flags for memory diagnosis:\njava -Xms4g -Xmx4g \\\n     -XX:+HeapDumpOnOutOfMemoryError \\\n     -XX:HeapDumpPath=/var/log/app/heap_oom.hprof \\\n     -jar app.jar",
+      "pitfall": "Generating a heap dump on multi-gigabyte heaps pauses the process and requires substantial disk write throughput. Ensure the target filesystem has sufficient free space equal to `-Xmx`.",
+      "citation": "Oracle Java SE 21 Tools: Advanced GC Options"
+    },
+    {
+      "id": "mcq-01-001-08",
+      "concept": "Disassembling Bytecode with javap",
+      "category": "CLI & Toolchain",
+      "difficulty": "Intermediate",
+      "question": "What command-line tool included with the JDK allows developers to disassemble and inspect the bytecode instructions inside a compiled `.class` file?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`jstack`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`javap` (with flag `-c` or `-v`)",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`jcmd`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`jps`",
+          "correct": false
+        }
+      ],
+      "explanation": "`javap` is the Java class file disassembler. Running `javap -c ClassName` prints disassembled bytecode instructions. Running `javap -v ClassName` provides full verbose details including constant pool, stack depths, and local variable tables.",
+      "codeSnippet": "% javap -c -v target/classes/com/example/User.class\nClassfile /.../User.class\n  Last modified Oct 9, 2026; size 1234 bytes\n  Constant pool:\n    #1 = Methodref   #2.#3\n  public java.lang.String getName();\n    descriptor: ()Ljava/lang/String;\n    flags: (0x0001) ACC_PUBLIC\n    Code:\n      stack=1, locals=1, args_size=1\n         0: aload_0\n         1: getfield      #7 // Field name:Ljava/lang/String;\n         4: areturn",
+      "pitfall": "Do not pass the `.class` extension to `javap` when inspecting classes on the classpath (use `javap -c com.example.User`). Use the file path only when specifying a direct relative/absolute filename.",
+      "citation": "Oracle JDK 21 Tool Specifications: javap"
+    }
+  ]
+}

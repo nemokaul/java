@@ -1,0 +1,274 @@
+{
+  "deckId": "ch-01-003",
+  "title": "§01-003: Exceptions, Errors & Failure Atomicity",
+  "chapterId": "01-003",
+  "sectionId": "section-01",
+  "description": "Checked vs unchecked exceptions, try-with-resources, suppressed exceptions, multi-catch, and failure atomicity.",
+  "totalCards": 8,
+  "cards": [
+    {
+      "id": "mcq-01-003-01",
+      "concept": "Checked vs Unchecked Exceptions",
+      "category": "Exception Architecture",
+      "difficulty": "Beginner",
+      "question": "Which of the following exception types is an UNCHECKED exception that does NOT require declaration in a `throws` clause?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`java.io.IOException`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`java.sql.SQLException`",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`java.lang.IllegalArgumentException` (subclass of `RuntimeException`)",
+          "correct": true
+        },
+        {
+          "id": "D",
+          "text": "`java.lang.ClassNotFoundException`",
+          "correct": false
+        }
+      ],
+      "explanation": "Unchecked exceptions inherit from `java.lang.RuntimeException` or `java.lang.Error`. The compiler does not enforce handling or declaring them. They typically represent programming bugs, invariant violations, or unrecoverable conditions. All other `Throwable` subtypes are checked exceptions.",
+      "codeSnippet": "public void processAge(int age) {\n    if (age < 0) {\n        // IllegalArgumentException is unchecked; no 'throws' required\n        throw new IllegalArgumentException(\"Age cannot be negative: \" + age);\n    }\n}",
+      "pitfall": "Do not catch generic `Exception` or `Throwable` to silence checked exceptions. This inadvertently swallows unchecked runtime errors like `NullPointerException`.",
+      "citation": "Effective Java (Bloch) Item 70: Use checked exceptions for recoverable conditions and runtime exceptions for programming errors"
+    },
+    {
+      "id": "mcq-01-003-02",
+      "concept": "Try-With-Resources Close Order",
+      "category": "Resource Management",
+      "difficulty": "Intermediate",
+      "question": "In a try-with-resources statement declaring multiple resources `try (ResourceA a = new ResourceA(); ResourceB b = new ResourceB())`, in what order are the `close()` methods invoked?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`a.close()` is called first, followed by `b.close()`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`b.close()` is called first, followed by `a.close()` (reverse order of declaration).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Both resources are closed concurrently in parallel threads.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Only the resource that experienced an error is closed.",
+          "correct": false
+        }
+      ],
+      "explanation": "Try-with-resources closes resources in the reverse order of their declaration. This mirrors dependency lifecycles: if Resource B depends on Resource A, closing B first guarantees A remains open while B flushes its buffers and terminates.",
+      "codeSnippet": "try (FileInputStream fis = new FileInputStream(\"data.txt\");\n     BufferedInputStream bis = new BufferedInputStream(fis);\n     GZIPInputStream gis = new GZIPInputStream(gis)) {\n    // On exit: gis closes first, then bis, then fis!\n}",
+      "pitfall": "Declaring dependent resources outside the try-with-resources parentheses defeats the automatic reverse-order cleanup guarantee.",
+      "citation": "Effective Java (Bloch) Item 9: Prefer try-with-resources to try-finally"
+    },
+    {
+      "id": "mcq-01-003-03",
+      "concept": "Suppressed Exceptions",
+      "category": "Resource Management",
+      "difficulty": "Intermediate",
+      "question": "If both the try block AND the auto-closing `close()` method throw an exception in a try-with-resources construct, which exception is propagated to the caller?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The exception thrown inside `close()` replaces and erases the try-block exception.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The primary exception from the try block is thrown, and the `close()` exception is attached as a suppressed exception via `getSuppressed()`.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The JVM halts immediately with an uncatchable fatal error.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Both exceptions are combined into a `CompoundException`.",
+          "correct": false
+        }
+      ],
+      "explanation": "Try-with-resources preserves the original cause of failure. The exception originating from the try block is thrown, and any subsequent exception thrown during `close()` is recorded on the primary exception as a suppressed exception, retrievable via `e.getSuppressed()`.",
+      "codeSnippet": "try (BrokenResource r = new BrokenResource()) {\n    throw new IllegalStateException(\"Primary error in business logic\");\n} catch (Exception e) {\n    System.out.println(\"Caught: \" + e.getMessage()); // Primary error\n    for (Throwable suppressed : e.getSuppressed()) {\n        System.out.println(\"Suppressed: \" + suppressed.getMessage()); // Close error!\n    }\n}",
+      "pitfall": "In traditional legacy `try-finally`, an exception in `finally` completely swallowed and masked the exception from `try`, making debugging catastrophic. Try-with-resources completely fixes this.",
+      "citation": "Java Language Specification SE 21 §14.20.3 / Effective Java Item 9"
+    },
+    {
+      "id": "mcq-01-003-04",
+      "concept": "Multi-Catch Block Rules",
+      "category": "Syntax & Flow Control",
+      "difficulty": "Intermediate",
+      "question": "What restriction applies to the exception parameter in a multi-catch block `catch (IOException | SQLException e)`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The variable `e` must be explicitly reassigned inside the block.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The variable `e` is implicitly `final` and cannot be reassigned; also, the caught types must not have an inheritance relationship.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Only unchecked exceptions can be caught in multi-catch blocks.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The block must rethrow `e` at the end.",
+          "correct": false
+        }
+      ],
+      "explanation": "In multi-catch statements: 1) The exception parameter `e` is implicitly final and cannot be reassigned. 2) If two caught types are related by subclassing (e.g. `FileNotFoundException | IOException`), the compiler rejects the code with an error because the subtype branch is unreachable.",
+      "codeSnippet": "// Valid multi-catch:\ntry {\n    executeDbQuery();\n} catch (SQLException | IOException e) {\n    // e is implicitly final: e = new IOException(); -> COMPILE ERROR!\n    logger.error(\"Operation failed\", e);\n}\n\n// INVALID (Compile Error: FileNotFoundException is a subclass of IOException):\n// catch (FileNotFoundException | IOException e) { ... }",
+      "pitfall": "Listing a subclass and its superclass in the same multi-catch generates a compile-time error: 'Types in multi-catch must be disjoint'.",
+      "citation": "Java Language Specification §14.20 / Learning Java Ch. 6"
+    },
+    {
+      "id": "mcq-01-003-05",
+      "concept": "Finally Block Return Statement Dangers",
+      "category": "Syntax & Flow Control",
+      "difficulty": "Intermediate",
+      "question": "What happens if a method executes `return 1;` inside a `try` block, but also executes `return 2;` inside its `finally` block?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The method returns `1`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The method returns `2`, discarding the `return 1` and swallowing any exception that may have been thrown in the try block.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The code fails to compile due to conflicting return values.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The method returns an average or tuple `(1, 2)`.",
+          "correct": false
+        }
+      ],
+      "explanation": "A return statement in a `finally` block overrides any preceding return statement or unhandled exception in the `try` or `catch` blocks. The finally block always completes abrupt termination, which can quietly swallow critical errors.",
+      "codeSnippet": "public static int dangerousMethod() {\n    try {\n        throw new RuntimeException(\"Fatal failure!\");\n    } finally {\n        return 42; // SWALLOWS the RuntimeException silently!\n    }\n}\n// Calling dangerousMethod() returns 42 and does NOT throw!",
+      "pitfall": "Never place `return`, `throw`, `break`, or `continue` inside a `finally` block. Doing so discards pending exceptions and makes diagnosing defects almost impossible.",
+      "citation": "Effective Java Item 9 / JLS §14.20.2"
+    },
+    {
+      "id": "mcq-01-003-06",
+      "concept": "Failure Atomicity",
+      "category": "Architecture & Design",
+      "difficulty": "Advanced",
+      "question": "What does the principle of 'Failure Atomicity' require when a method encounters a failure during execution?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The entire JVM process must immediately abort without writing to disk.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "A failed method invocation should leave the target object in the state that it was in prior to the invocation.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Every method must be wrapped in a database JTA transaction.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "All exceptions must be caught and replaced with boolean `false` return codes.",
+          "correct": false
+        }
+      ],
+      "explanation": "Failure atomicity means that if an operation fails midway through execution, the object should remain in its original valid state rather than in a half-mutated, corrupted state. Ways to achieve this include: checking parameter validity before mutating state, performing mutations on temporary copies, or writing recovery rollbacks.",
+      "codeSnippet": "public void deposit(BigDecimal amount) {\n    // Check arguments BEFORE mutating state to achieve failure atomicity:\n    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {\n        throw new IllegalArgumentException(\"Invalid amount: \" + amount);\n    }\n    this.balance = this.balance.add(amount);\n}",
+      "pitfall": "Mutating internal object state before validating secondary arguments leaves the object corrupted if an exception occurs mid-method.",
+      "citation": "Effective Java (Bloch) Item 76: Strive for failure atomicity"
+    },
+    {
+      "id": "mcq-01-003-07",
+      "concept": "AutoCloseable vs Closeable",
+      "category": "Resource Management",
+      "difficulty": "Intermediate",
+      "question": "How does Java's `java.lang.AutoCloseable` interface differ from `java.io.Closeable`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`AutoCloseable`'s `close()` method is declared to throw `Exception`, whereas `Closeable`'s `close()` is restricted to throwing `IOException`.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "`AutoCloseable` can only be used with files, while `Closeable` can be used with sockets.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`Closeable` is asynchronous, while `AutoCloseable` is blocking.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`AutoCloseable` requires the `@Override` annotation on all constructor calls.",
+          "correct": false
+        }
+      ],
+      "explanation": "`AutoCloseable` (introduced in Java 7 for try-with-resources) declares `void close() throws Exception`, allowing non-I/O resources (like database connections) to throw specific exceptions. `Closeable` is a sub-interface that specializes `close()` to `throws IOException` for stream compatibility.",
+      "codeSnippet": "public class CustomResource implements AutoCloseable {\n    @Override\n    // Best practice: declare specific exception (or no exception) instead of raw Exception\n    public void close() throws SQLException {\n        dbConnection.close();\n    }\n}",
+      "pitfall": "When implementing `AutoCloseable`, avoid declaring `throws Exception` on your `close()` method if possible. Declare the specific exception your resource actually throws so callers don't have to catch raw `Exception`.",
+      "citation": "Java SE 21 API Specification: java.lang.AutoCloseable"
+    },
+    {
+      "id": "mcq-01-003-08",
+      "concept": "Catching Error Subclasses",
+      "category": "Exception Architecture",
+      "difficulty": "Intermediate",
+      "question": "Why is it considered dangerous practice to catch `java.lang.Error` (or `Throwable` without rethrowing)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Errors are checked exceptions and cannot be caught without a custom compiler plugin.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`Error` indicates severe JVM-level conditions (such as `OutOfMemoryError`, `StackOverflowError`, or linkage failures) from which a program should not attempt recovery.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Catching `Error` causes the JVM garbage collector to permanently freeze.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The Java compiler automatically converts `catch (Error e)` into a no-op.",
+          "correct": false
+        }
+      ],
+      "explanation": "`Error` indicates problems from which typical applications cannot recover (e.g. `VirtualMachineError`, `OutOfMemoryError`, `LinkageError`). Catching `Error` and continuing execution leaves the JVM in an unstable, unpredictable state where invariants cannot be trusted.",
+      "codeSnippet": "// Dangerous Anti-Pattern:\ntry {\n    doWork();\n} catch (Throwable t) { // Catches Error, OOM, StackOverflow!\n    // Swallowing this prevents the JVM from failing fast!\n    logger.warn(\"Ignored: \" + t);\n}",
+      "pitfall": "If you must catch `Throwable` (e.g. in a top-level framework dispatcher thread), always log thoroughly and rethrow or cleanly restart the worker thread.",
+      "citation": "Java Language Specification §11.1.1 / Effective Java Item 70"
+    }
+  ]
+}

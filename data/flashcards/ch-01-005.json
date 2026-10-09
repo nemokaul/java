@@ -1,0 +1,274 @@
+{
+  "deckId": "ch-01-005",
+  "title": "§01-005: I/O, NIO.2 & Java Module System",
+  "chapterId": "01-005",
+  "sectionId": "section-01",
+  "description": "Byte vs character streams, NIO.2 Files/Path utilities, buffering, standard charsets, and module directives.",
+  "totalCards": 8,
+  "cards": [
+    {
+      "id": "mcq-01-005-01",
+      "concept": "Byte Streams vs Character Streams",
+      "category": "I/O Fundamentals",
+      "difficulty": "Beginner",
+      "question": "What is the key difference between `InputStream`/`OutputStream` and `Reader`/`Writer` in the `java.io` package?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`InputStream`/`OutputStream` handle raw 8-bit binary bytes, while `Reader`/`Writer` handle 16-bit Unicode characters with character encoding translation.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "`Reader`/`Writer` are asynchronous, while `InputStream`/`OutputStream` are synchronous.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`InputStream`/`OutputStream` only work with network sockets.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`Reader`/`Writer` do not support buffering.",
+          "correct": false
+        }
+      ],
+      "explanation": "`InputStream` and `OutputStream` process streams of raw binary bytes (8-bit). `Reader` and `Writer` process text data (Unicode characters) and automatically handle encoding and decoding between byte sequences and characters using a specified `Charset`.",
+      "codeSnippet": "// Converting a binary stream to a character reader with explicit UTF-8:\nInputStream is = new FileInputStream(\"document.txt\");\nReader reader = new InputStreamReader(is, StandardCharsets.UTF_8);",
+      "pitfall": "Using byte streams to read text files containing non-ASCII characters leads to corrupted multi-byte UTF-8 sequences. Always use Readers or `Files.readString()` with `StandardCharsets.UTF_8`.",
+      "citation": "Oracle Java SE 21 Tools & I/O Guide / Learning Java Ch. 11"
+    },
+    {
+      "id": "mcq-01-005-02",
+      "concept": "NIO.2 Path and Files Utility",
+      "category": "NIO.2",
+      "difficulty": "Beginner",
+      "question": "What is the recommended modern approach in Java 11+ to read the entire contents of a UTF-8 text file into a `String`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`new String(new FileInputStream(file).readAllBytes())` without specifying charset.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`Files.readString(Path.of(\"file.txt\"), StandardCharsets.UTF_8)`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Creating a `StringBuffer` and appending line-by-line using `Scanner`.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`System.load(\"file.txt\")`",
+          "correct": false
+        }
+      ],
+      "explanation": "`Files.readString(Path)` (introduced in Java 11) is the concise, standard method to read small-to-medium files into memory. It defaults to UTF-8 if charset is omitted, manages resource closing cleanly, and performs direct NIO buffer reads.",
+      "codeSnippet": "Path path = Path.of(\"config.json\");\n\n// Read full string:\nString content = Files.readString(path, StandardCharsets.UTF_8);\n\n// Write string directly:\nFiles.writeString(path, \"{\\\"status\\\": \\\"ok\\\"}\", StandardCharsets.UTF_8);",
+      "pitfall": "Do not use `Files.readString()` or `Files.readAllBytes()` on huge multi-gigabyte log files, as this loads the entire file into the JVM heap and can trigger an `OutOfMemoryError`. Use `Files.lines(path)` with streams for large files.",
+      "citation": "Oracle Java SE 21 API: java.nio.file.Files"
+    },
+    {
+      "id": "mcq-01-005-03",
+      "concept": "Closing Streams with Files.lines()",
+      "category": "NIO.2",
+      "difficulty": "Intermediate",
+      "question": "Why MUST `Files.lines(Path)` be wrapped inside a try-with-resources statement when reading file lines as a `Stream<String>`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Because `Files.lines` will not execute without a try block.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Because the returned `Stream<String>` holds an open underlying file channel that is only closed when `stream.close()` is invoked.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Because the compiler checks for `FileNotFoundException` at every stream intermediate step.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Because lines are decrypted on the fly.",
+          "correct": false
+        }
+      ],
+      "explanation": "`Files.lines(path)` returns a lazy stream backed by an open file handle. Unlike most Java streams, it implements `AutoCloseable`. Failing to close it in a try-with-resources statement leaks file descriptors, eventually causing `Too many open files` OS errors.",
+      "codeSnippet": "// PROPER RESOURCE MANAGEMENT:\ntry (Stream<String> lines = Files.lines(Path.of(\"large.log\"))) {\n    lines.filter(line -> line.contains(\"ERROR\"))\n         .limit(50)\n         .forEach(System.out::println);\n} // Underlying file handle cleanly closed here!",
+      "pitfall": "Writing `Files.lines(path).filter(...).forEach(...)` directly without try-with-resources leaks open file descriptors in production applications.",
+      "citation": "Oracle Java SE 21 API: java.nio.file.Files#lines"
+    },
+    {
+      "id": "mcq-01-005-04",
+      "concept": "The Purpose of Buffering in I/O",
+      "category": "I/O Performance",
+      "difficulty": "Beginner",
+      "question": "What is the primary performance benefit of wrapping an `InputStream` in a `BufferedInputStream`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It compresses stream data in memory to reduce heap usage.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "It reduces expensive kernel system calls (`read`/`write`) by reading chunks of data into an internal memory buffer (default 8KB).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It encrypts the stream using AES-256 automatically.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It converts blocking I/O into non-blocking epoll sockets.",
+          "correct": false
+        }
+      ],
+      "explanation": "Standard unbuffered I/O issues a hardware/OS system call for each single byte read (`read()`), which introduces substantial context-switching overhead. `BufferedInputStream` reads an 8KB block into user-space memory in a single system call and serves subsequent reads from that buffer.",
+      "codeSnippet": "// High-performance reading:\ntry (InputStream raw = new FileInputStream(\"large.bin\");\n     BufferedInputStream buffered = new BufferedInputStream(raw, 32768)) { // 32KB buffer\n    int b;\n    while ((b = buffered.read()) != -1) {\n        // Process byte from memory buffer\n    }\n}",
+      "pitfall": "Failing to `flush()` or `close()` a `BufferedOutputStream` or `BufferedWriter` means unwritten buffered data in memory may never be flushed to the destination file before termination.",
+      "citation": "Java Web Internals (Massetto) Ch. 3 / Learning Java Ch. 11"
+    },
+    {
+      "id": "mcq-01-005-05",
+      "concept": "Module System exports vs opens",
+      "category": "Java Module System (JPMS)",
+      "difficulty": "Intermediate",
+      "question": "In a `module-info.java` file, what is the crucial distinction between the `exports` and `opens` directives?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`exports` grants compile-time and runtime public access, while `opens` grants deep reflection access (even to private members) at runtime.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "`exports` is for interfaces, while `opens` is for concrete classes.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`opens` makes the module public to Maven Central.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`exports` is deprecated in Java 21 in favor of `requires`.",
+          "correct": false
+        }
+      ],
+      "explanation": "`exports pkg;` allows other modules to compile against and access `public` types in `pkg` at compile-time and runtime. `opens pkg;` allows runtime reflection frameworks (like Spring, Jackson, or Hibernate) to access even `private` fields and methods via `setAccessible(true)` without granting compile-time access.",
+      "codeSnippet": "module com.example.model {\n    requires com.fasterxml.jackson.databind;\n    \n    // Compile-time public access for other modules:\n    exports com.example.model.dto;\n    \n    // Runtime reflection only for Jackson deserialization:\n    opens com.example.model.dto to com.fasterxml.jackson.databind;\n}",
+      "pitfall": "If Jackson or Spring cannot deserialize your private DTO fields in a modular project, you likely forgot an `opens` directive in `module-info.java`.",
+      "citation": "Java Platform Module System (JEP 261) / Enterprise Java Design Patterns (Eisele) Ch. 2"
+    },
+    {
+      "id": "mcq-01-005-06",
+      "concept": "Module requires transitive Directive",
+      "category": "Java Module System (JPMS)",
+      "difficulty": "Intermediate",
+      "question": "What does `requires transitive <module_name>;` achieve in a `module-info.java` declaration?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It downloads the dependency transitively from Maven repositories at startup.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Any other module that requires this module automatically gains readability to the transitively required module as well (implied readability).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It forces the dependency to be bundled inside the final JAR archive.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It allows circular dependencies between two modules.",
+          "correct": false
+        }
+      ],
+      "explanation": "`requires transitive M;` creates implied readability. If module B `requires transitive C;` and module A `requires B;`, module A can read types in module C without explicitly declaring `requires C;`. This is essential when public methods in B return types from C.",
+      "codeSnippet": "// Module: java.sql\nmodule java.sql {\n    // java.logging is required transitively because java.sql public APIs expose logging types:\n    requires transitive java.logging;\n    requires transitive java.xml;\n    exports java.sql;\n}",
+      "pitfall": "If your module's public API methods return or accept types from an external library, you must declare `requires transitive`, otherwise client code won't compile without extra manual declarations.",
+      "citation": "Oracle Java SE 21 Modules Specification"
+    },
+    {
+      "id": "mcq-01-005-07",
+      "concept": "ServiceLoader in Modular Java",
+      "category": "Java Module System (JPMS)",
+      "difficulty": "Advanced",
+      "question": "Which pair of `module-info.java` directives is used to register and consume decoupled service provider implementations via `ServiceLoader`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`imports` and `exports`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`provides <Interface> with <Implementation>` and `uses <Interface>`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`binds` and `resolves`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`injects` and `implements`",
+          "correct": false
+        }
+      ],
+      "explanation": "JPMS provides native loose coupling for the Service Provider Interface (SPI) pattern. A provider module declares `provides Interface with ImplementationClass;`, while a consumer module declares `uses Interface;`. The consumer then discovers instances at runtime via `ServiceLoader.load(Interface.class)`.",
+      "codeSnippet": "// In provider module:\nmodule com.example.codec.mp3 {\n    requires com.example.codec.api;\n    provides com.example.codec.api.AudioCodec with com.example.codec.mp3.Mp3Codec;\n}\n\n// In consumer module:\nmodule com.example.player {\n    requires com.example.codec.api;\n    uses com.example.codec.api.AudioCodec;\n}\n\n// Consuming via code:\nServiceLoader<AudioCodec> loader = ServiceLoader.load(AudioCodec.class);\nfor (AudioCodec codec : loader) { codec.decode(data); }",
+      "pitfall": "Forgetting the `uses` directive in the consumer module results in `ServiceLoader` returning an empty collection even if the provider module is present on the module path.",
+      "citation": "Oracle Java SE 21 Docs: java.util.ServiceLoader"
+    },
+    {
+      "id": "mcq-01-005-08",
+      "concept": "The Unnamed Module and Classpath",
+      "category": "Java Module System (JPMS)",
+      "difficulty": "Intermediate",
+      "question": "What happens to legacy classes loaded from the traditional classpath (`-cp`) when running on Java 9+?",
+      "options": [
+        {
+          "id": "A",
+          "text": "They fail to load unless converted to modular JARs.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "They are placed into the 'unnamed module', which can read all modules and exports all its packages to everyone.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "They are executed in a legacy 32-bit compatibility sandbox.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "They can only access the `java.base` module.",
+          "correct": false
+        }
+      ],
+      "explanation": "To preserve backward compatibility, any JAR or class loaded from the classpath is assigned to the 'unnamed module'. The unnamed module can read all other modules on the module path and exports all of its own packages freely.",
+      "codeSnippet": "# Legacy app running on classpath:\njava -cp \"lib/*:app.jar\" com.example.Main\n# All classes in app.jar reside in the unnamed module and can access java.base, java.sql, etc.",
+      "pitfall": "While the unnamed module can read all named modules, named modules on the module path CANNOT read the unnamed module. You cannot add a `requires` statement targeting the unnamed module.",
+      "citation": "Understanding Java 9 Modules / Oracle JPMS Guide"
+    }
+  ]
+}

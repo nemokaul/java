@@ -1,0 +1,274 @@
+{
+  "deckId": "ch-01-002",
+  "title": "§01-002: Java Syntax & OOP Fundamentals",
+  "chapterId": "01-002",
+  "sectionId": "section-01",
+  "description": "Method overriding vs overloading, records, access modifiers, sealed classes, pattern matching, and value equality.",
+  "totalCards": 8,
+  "cards": [
+    {
+      "id": "mcq-01-002-01",
+      "concept": "Equals Method Overloading vs Overriding",
+      "category": "OOP Fundamentals",
+      "difficulty": "Intermediate",
+      "question": "What is the critical defect in declaring `public boolean equals(Point other)` instead of `public boolean equals(Object other)`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The code fails to compile because `@Override` is required for all public methods.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "It overloads `equals` instead of overriding `Object.equals(Object)`, causing collections like `HashSet` and `HashMap` to fall back to reference identity (`==`).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The JVM throws a `ClassCastException` whenever an element is placed into a collection.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The method is ignored by the JVM and garbage collected.",
+          "correct": false
+        }
+      ],
+      "explanation": "Method overriding requires the exact parameter signature of the superclass method: `public boolean equals(Object o)`. Declaring `equals(Point other)` creates an overload. Because standard collections operate on `Object` references, they invoke `equals(Object)`, resulting in default reference identity comparison.",
+      "codeSnippet": "public class BrokenPoint {\n    final int x, y;\n    BrokenPoint(int x, int y) { this.x = x; this.y = y; }\n\n    // BUG: Overload! Not an override of Object.equals(Object)\n    public boolean equals(BrokenPoint other) {\n        return this.x == other.x && this.y == other.y;\n    }\n}\n\nSet<BrokenPoint> set = new HashSet<>();\nset.add(new BrokenPoint(1, 2));\n// Returns FALSE because HashSet calls equals(Object)!\nSystem.out.println(set.contains(new BrokenPoint(1, 2)));",
+      "pitfall": "Always annotate `equals` with `@Override`. If you accidentally overload the method signature, the compiler will catch it immediately.",
+      "citation": "Effective Java (Bloch) Item 10 / Learning Java (Loy et al.) Ch. 5"
+    },
+    {
+      "id": "mcq-01-002-02",
+      "concept": "Floating-Point Comparison in Value Classes",
+      "category": "Syntax & Primitives",
+      "difficulty": "Intermediate",
+      "question": "Why should `Double.compare(d1, d2) == 0` be used instead of `d1 == d2` when implementing `equals` for a class containing `double` fields?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Primitive `double` cannot be compared using `==` in Java.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`d1 == d2` evaluates `Double.NaN == Double.NaN` as `false`, violating reflexive equality in collections, whereas `Double.compare` treats `NaN` values as equal.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`Double.compare` converts double to `BigDecimal` automatically to avoid rounding drift.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`==` triggers memory boxing allocations on every check.",
+          "correct": false
+        }
+      ],
+      "explanation": "Under IEEE 754 rules, `Double.NaN == Double.NaN` evaluates to `false`. However, the general contract of `equals` requires reflexivity (`x.equals(x)` must always be `true`). `Double.compare(Double.NaN, Double.NaN) == 0` correctly evaluates to `true`, maintaining collection integrity.",
+      "codeSnippet": "double nan1 = Double.NaN;\ndouble nan2 = Double.NaN;\nSystem.out.println(nan1 == nan2); // false (IEEE 754)\nSystem.out.println(Double.compare(nan1, nan2) == 0); // true (Consistent object equality)\n\n// Also handles signed zeros:\ndouble zero = 0.0;\ndouble negZero = -0.0;\nSystem.out.println(zero == negZero); // true\nSystem.out.println(Double.compare(zero, negZero) == 0); // false (-0.0 < 0.0)",
+      "pitfall": "Never use primitive `==` on `float` or `double` fields inside `equals()`. Always use `Float.compare(f1, f2) == 0` and `Double.compare(d1, d2) == 0`.",
+      "citation": "Effective Java (Bloch) Item 10 & Item 11 / Java Language Specification §15.21.1"
+    },
+    {
+      "id": "mcq-01-002-03",
+      "concept": "Java Records Compact Constructor",
+      "category": "Modern Java",
+      "difficulty": "Beginner",
+      "question": "In a Java `record`, what is the primary purpose of a compact constructor (e.g. `public Range { ... }` without a parameter list)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "To define private helper fields that are excluded from the canonical state vector.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "To validate and normalize record components before the compiler automatically assigns them to fields.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "To bypass final field initialization and enable mutable setters.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "To allow the record to extend a custom abstract base class.",
+          "correct": false
+        }
+      ],
+      "explanation": "A compact constructor omits the explicit parameter list and the boilerplate field assignments (`this.x = x`). Developers use it to validate invariants (e.g. checking for null or range boundaries) or normalize values. The compiler implicitly inserts field assignments at the end of the constructor block.",
+      "codeSnippet": "public record Range(int low, int high) {\n    // Compact constructor:\n    public Range {\n        if (low > high) {\n            throw new IllegalArgumentException(\"low (\" + low + \") > high (\" + high + \")\");\n        }\n        // Compiler automatically does: this.low = low; this.high = high;\n    }\n}",
+      "pitfall": "Do not attempt to write `this.low = low;` inside a compact constructor; assigning directly to record fields in a compact constructor results in a compilation error.",
+      "citation": "Java SE 21 Specification: Records (JEP 395) / Learning Java Ch. 5"
+    },
+    {
+      "id": "mcq-01-002-04",
+      "concept": "Package-Private Access Modifier",
+      "category": "Access Control",
+      "difficulty": "Beginner",
+      "question": "If a class member (field or method) has NO access modifier specified (default), what is its accessibility scope?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Visible to all classes in all packages across the entire module.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Visible only within the declaring class and all its subclasses regardless of package.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "Visible to any class within the same package, but inaccessible to outside packages and subclasses in other packages.",
+          "correct": true
+        },
+        {
+          "id": "D",
+          "text": "Strictly private to the declaring class.",
+          "correct": false
+        }
+      ],
+      "explanation": "The default access modifier in Java is package-private (no keyword). It allows access only from types located within the exact same package. Unlike `protected`, it does not grant access to subclasses located in different packages.",
+      "codeSnippet": "package com.example.service;\n\npublic class AccountService {\n    // Package-private: visible to other classes in com.example.service,\n    // but hidden from outside packages.\n    void internalAuditLog(String action) {\n        System.out.println(\"Audit: \" + action);\n    }\n}",
+      "pitfall": "Developers coming from C++ or TypeScript often mistake package-private for `protected`. `protected` includes package access PLUS subclasses anywhere; default includes package access ONLY.",
+      "citation": "Effective Java (Bloch) Item 15: Minimize the accessibility of classes and members"
+    },
+    {
+      "id": "mcq-01-002-05",
+      "concept": "Sealed Classes and Permitted Subclasses",
+      "category": "Modern Java",
+      "difficulty": "Intermediate",
+      "question": "When defining a sealed interface `sealed interface Shape permits Circle, Square`, what modifier MUST every permitted subtype declare?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Every subtype must declare the `abstract` modifier.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Every subtype must declare exactly one of: `final`, `sealed`, or `non-sealed`.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Every subtype must declare the `record` modifier.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Every subtype must declare `transient`.",
+          "correct": false
+        }
+      ],
+      "explanation": "Java requires that every class or interface that extends/implements a sealed type explicitly specify its subclassing policy using one of three modifiers: `final` (prevents further subclassing), `sealed` (restricts subclassing to another specific set), or `non-sealed` (opens subclassing to any class).",
+      "codeSnippet": "public sealed interface Shape permits Circle, Square, Polygon {}\n\n// 1. final: terminates hierarchy\npublic final class Circle implements Shape {}\n\n// 2. record: implicitly final\npublic record Square(double side) implements Shape {}\n\n// 3. non-sealed: allows open extension\npublic non-sealed class Polygon implements Shape {}",
+      "pitfall": "Permitted classes must reside in the same package (or same named module) as the sealed supertype, otherwise compilation fails.",
+      "citation": "Java SE 21 Specification: Sealed Classes (JEP 409)"
+    },
+    {
+      "id": "mcq-01-002-06",
+      "concept": "Pattern Matching for switch Null Handling",
+      "category": "Modern Java",
+      "difficulty": "Intermediate",
+      "question": "In Java 21 pattern matching for `switch`, what happens by default if a `null` value is evaluated without an explicit `case null` branch?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It matches the `default` branch silently.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The switch expression throws a `NullPointerException` immediately.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The switch yields `null` without executing any branch.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It results in a compile-time syntax error.",
+          "correct": false
+        }
+      ],
+      "explanation": "Historically and in modern pattern matching, a switch statement or expression throws `NullPointerException` if the selector expression evaluates to `null`, unless an explicit `case null` (or combined `case null, default`) branch is present.",
+      "codeSnippet": "static String format(Object obj) {\n    return switch (obj) {\n        case null -> \"Value was null\"; // Handles null safely!\n        case Integer i -> \"Integer: \" + i;\n        case String s  -> \"String: \" + s;\n        default        -> \"Unknown object\";\n    };\n}",
+      "pitfall": "Assuming `default` catches `null` in a switch. In Java, `default` only matches non-null values that do not match other patterns unless written as `case null, default:`.",
+      "citation": "Java SE 21 Specification: Pattern Matching for switch (JEP 441)"
+    },
+    {
+      "id": "mcq-01-002-07",
+      "concept": "Covariant Return Types",
+      "category": "OOP Fundamentals",
+      "difficulty": "Intermediate",
+      "question": "What is a covariant return type in Java method overriding?",
+      "options": [
+        {
+          "id": "A",
+          "text": "An overridden method can return a subtype of the return type declared in the superclass method.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "An overridden method can accept broader parameter types than the superclass method.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "A method can return multiple values simultaneously using tuples.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "A method whose return type changes based on generic type arguments at runtime.",
+          "correct": false
+        }
+      ],
+      "explanation": "Since Java 5, an overriding method is permitted to declare a return type that is a subtype of the superclass method's return type (covariance). This eliminates the need for callers to cast the returned object when invoking the method on the subclass type.",
+      "codeSnippet": "public class AnimalProducer {\n    public Animal produce() { return new Animal(); }\n}\n\npublic class DogProducer extends AnimalProducer {\n    // Covariant return type: Dog is a subtype of Animal\n    @Override\n    public Dog produce() { return new Dog(); }\n}\n\nDogProducer dp = new DogProducer();\nDog myDog = dp.produce(); // No cast needed!",
+      "pitfall": "Covariance applies ONLY to return types, NEVER to parameter types. Altering parameter types creates an overload rather than an override.",
+      "citation": "Effective Java (Bloch) Item 54 / JLS §8.4.8.3"
+    },
+    {
+      "id": "mcq-01-002-08",
+      "concept": "Instance vs Class Member Storage",
+      "category": "JVM Memory",
+      "difficulty": "Beginner",
+      "question": "Where are `static` fields allocated in Java 8+, and how does their lifecycle differ from instance fields?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Static fields are allocated on the thread execution stack and destroyed when the method exits.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Static fields are stored with the Class object in the heap and persist as long as the loading ClassLoader remains alive.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Static fields are recreated every time `new` is called on the class.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Static fields are stored in the CPU registers.",
+          "correct": false
+        }
+      ],
+      "explanation": "Static fields belong to the `Class` object rather than any individual instance. In Java 8+, `Class` objects and their static fields reside in the managed heap (with metadata in Metaspace) and remain accessible throughout the lifetime of the class's defining `ClassLoader`.",
+      "codeSnippet": "public class Counter {\n    // One shared copy on the heap for the entire class:\n    public static int globalCount = 0;\n    \n    // Allocated on the heap inside each new Counter instance:\n    public int instanceCount = 0;\n}",
+      "pitfall": "Storing large collections or caches in `static` fields without eviction is the leading cause of classloader memory leaks, as these objects cannot be collected until the class itself is unloaded.",
+      "citation": "Effective Java (Bloch) Item 7: Eliminate obsolete object references"
+    }
+  ]
+}

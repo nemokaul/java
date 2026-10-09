@@ -1,0 +1,208 @@
+{
+  "deckId": "ch-01-008",
+  "title": "§01-008: Serialization, Enums & Residual Review",
+  "chapterId": "01-008",
+  "sectionId": "section-01",
+  "description": "Default serialization risks, serialVersionUID, transient fields, readResolve, and type-safe enums.",
+  "totalCards": 6,
+  "cards": [
+    {
+      "id": "mcq-01-008-01",
+      "concept": "The transient Keyword in Serialization",
+      "category": "Serialization",
+      "difficulty": "Beginner",
+      "question": "What effect does the `transient` keyword have on an instance field of a class implementing `java.io.Serializable`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The field is made thread-safe with volatile read/write semantics.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The field is omitted from default binary serialization and restored to its default value (null/0/false) upon deserialization.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The field can only be accessed by transient threads.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The field is automatically encrypted before transmission.",
+          "correct": false
+        }
+      ],
+      "explanation": "Fields marked `transient` are excluded from the default serialization mechanism. They are useful for sensitive credentials (passwords), cached computed values, or non-serializable objects (like open socket/file handles). When deserialized, transient fields receive default JVM values.",
+      "codeSnippet": "public class UserSession implements Serializable {\n    private String username;\n    private transient String passwordHash; // Excluded from serialization!\n    private transient Socket connection;   // Excluded!\n}",
+      "pitfall": "Upon deserialization, transient fields do not run initializers. If an object requires non-null defaults for transient fields, initialize them inside `readObject()`.",
+      "citation": "Java Object Serialization Specification §1.5 / Effective Java Item 87"
+    },
+    {
+      "id": "mcq-01-008-02",
+      "concept": "serialVersionUID Compatibility",
+      "category": "Serialization",
+      "difficulty": "Intermediate",
+      "question": "Why should every `Serializable` class explicitly declare `private static final long serialVersionUID`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Without it, the compiler refuses to generate bytecode.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "If omitted, the JVM generates one automatically based on class structure; any innocuous modification to the class changes this hash, breaking compatibility with previously serialized instances.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It specifies the licensing key for the software product.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It prevents classloading attacks from native JNI code.",
+          "correct": false
+        }
+      ],
+      "explanation": "If you do not explicitly declare `serialVersionUID`, the runtime computes a default value based on class details (compiler, interfaces, methods, fields). Different compilers or minor changes (e.g. adding a method) alter the generated ID, resulting in `InvalidClassException` upon deserialization.",
+      "codeSnippet": "public class UserProfile implements Serializable {\n    // Explicit serialVersionUID prevents accidental incompatibility:\n    private static final long serialVersionUID = 1L;\n\n    private String email;\n}",
+      "pitfall": "Failing to update `serialVersionUID` when making incompatible structural changes (like changing a field's primitive type) can cause silent field corruption.",
+      "citation": "Effective Java (Bloch) Item 87: Consider using a custom serialized form"
+    },
+    {
+      "id": "mcq-01-008-03",
+      "concept": "Preserving Singletons with readResolve",
+      "category": "Serialization & Patterns",
+      "difficulty": "Advanced",
+      "question": "What method must a traditional class-based Singleton implement to prevent deserialization from creating a new duplicate instance?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`public void validateSingleton()`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`private Object readResolve()` returning the existing singleton instance.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`public static Object getInstance()`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`protected void finalize()`",
+          "correct": false
+        }
+      ],
+      "explanation": "When an object is deserialized, `ObjectInputStream` creates a brand-new instance regardless of whether the constructor is private. If the class defines a `readResolve()` method, the deserialized object is replaced with the instance returned by `readResolve()` before returning to the caller.",
+      "codeSnippet": "public class Elvis implements Serializable {\n    public static final Elvis INSTANCE = new Elvis();\n    private Elvis() {}\n\n    // Guarantees singleton identity across serialization:\n    private Object readResolve() {\n        return INSTANCE;\n    }\n}",
+      "pitfall": "If any instance fields in the class-based singleton are non-transient, an attacker can use a deserialization gadget to steal references before `readResolve` executes. Prefer an enum singleton instead.",
+      "citation": "Effective Java (Bloch) Item 89: For instance control, prefer enum types to readResolve"
+    },
+    {
+      "id": "mcq-01-008-04",
+      "concept": "Java Enum Constant-Specific Methods",
+      "category": "Syntax & Enums",
+      "difficulty": "Intermediate",
+      "question": "How can different behaviors be attached to individual constants of an `enum` without using a sprawling `switch` statement?",
+      "options": [
+        {
+          "id": "A",
+          "text": "By declaring an abstract method in the enum and overriding it in constant-specific class bodies.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "By subclassing the enum in separate source files.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "By declaring dynamic javascript functions in the enum constructor.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Enums cannot have custom methods in Java.",
+          "correct": false
+        }
+      ],
+      "explanation": "Java enums are full-featured classes. By declaring an abstract method in the enum declaration, each constant can provide its own implementation in an anonymous constant-specific class body. The compiler forces every newly added constant to implement the method.",
+      "codeSnippet": "public enum Operation {\n    PLUS {\n        public double apply(double x, double y) { return x + y; }\n    },\n    MINUS {\n        public double apply(double x, double y) { return x - y; }\n    };\n\n    public abstract double apply(double x, double y);\n}",
+      "pitfall": "Using a `switch` statement on `this` inside an enum method requires you to remember to update the switch every time a new constant is added; constant-specific methods enforce this at compile-time.",
+      "citation": "Effective Java (Bloch) Item 34: Use enums instead of int constants"
+    },
+    {
+      "id": "mcq-01-008-05",
+      "concept": "EnumSet Performance over Bit Fields",
+      "category": "Collections & Enums",
+      "difficulty": "Intermediate",
+      "question": "Why should `java.util.EnumSet` be used instead of traditional bitwise int flags (`public static final int STYLE_BOLD = 1 << 0`)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`EnumSet` compiles directly into native hardware microcode.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`EnumSet` provides full type safety, readability, and rich Set operations while matching the raw performance of a bit field via an underlying `long` bit-vector.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Bit fields are deprecated and disallowed in modern Java.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`EnumSet` eliminates all heap memory allocation.",
+          "correct": false
+        }
+      ],
+      "explanation": "Historically, programmers used bit fields (`1 << 0`, `1 << 1`) for sets of options. `EnumSet` internally represents the set as a single `long` bit-vector (for enums with <= 64 elements), giving the exact same bitwise performance with full type safety and expressive Set APIs.",
+      "codeSnippet": "public enum Style { BOLD, ITALIC, UNDERLINE, STRIKETHROUGH }\n\n// Clean, type-safe, bit-vector performance:\nSet<Style> styles = EnumSet.of(Style.BOLD, Style.ITALIC);\ntextWidget.applyStyles(styles);",
+      "pitfall": "Never use integer bit flags in modern Java. They provide zero type safety, cannot be iterated easily, and printing them yields raw numbers with no semantic names.",
+      "citation": "Effective Java (Bloch) Item 36: Use EnumSet instead of bit fields"
+    },
+    {
+      "id": "mcq-01-008-06",
+      "concept": "Security Hazards of Java Deserialization",
+      "category": "Security",
+      "difficulty": "Advanced",
+      "question": "Why is native Java deserialization (`ObjectInputStream.readObject()`) widely considered one of the most critical security vulnerabilities in Java applications?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It exposes passwords in the operating system pagefile.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Untrusted serialized byte streams can instantiate arbitrary classes and trigger 'gadget chains' of method invocations during object reconstruction, leading to Remote Code Execution (RCE).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It causes the garbage collector to enter an infinite loop.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It only supports HTTP/1.0 connections.",
+          "correct": false
+        }
+      ],
+      "explanation": "Deserialization instantiates objects without calling constructors, invoking `readObject()` on arbitrary classes found in the classpath. Attackers construct 'gadget chains' (sequences of classes whose standard cleanup/read behaviors chain together to invoke `Runtime.getRuntime().exec()`), resulting in Remote Code Execution.",
+      "codeSnippet": "// Modern Recommendation: Prefer cross-platform structured formats (JSON / Protobuf)\n// If Java serialization is unavoidable, enforce a Serialization Filter (JEP 290):\nObjectInputFilter filter = ObjectInputFilter.Config.createFilter(\n    \"com.example.dto.*;java.base/*;!*\");\nobjectInputStream.setObjectInputFilter(filter);",
+      "pitfall": "Never deserialize untrusted data from network sockets or user cookies. Prefer JSON, Protocol Buffers, or strict JEP 290 object input filtering.",
+      "citation": "Effective Java (Bloch) Item 85: Prefer alternatives to Java serialization / Software Security for Developers (Saikali & Spilca) Ch. 7"
+    }
+  ]
+}

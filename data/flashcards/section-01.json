@@ -1,0 +1,2056 @@
+{
+  "deckId": "section-01",
+  "title": "Section 01: Complete JVM & Java Fundamentals Review Deck",
+  "chapterId": "all",
+  "sectionId": "section-01",
+  "description": "Comprehensive active-recall review deck covering all 8 chapters of Section 1 (62 questions).",
+  "totalCards": 62,
+  "cards": [
+    {
+      "id": "mcq-01-001-01",
+      "concept": "Java Bytecode Compilation",
+      "category": "CLI & Toolchain",
+      "difficulty": "Beginner",
+      "question": "What is the primary output of the `javac` compiler when processing a `.java` source file?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Native assembly code targeted specifically to the host CPU architecture (x86_64 / ARM64).",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Platform-independent intermediate bytecode encapsulated within `.class` binary files.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "A pre-linked executable binary package ready for direct operating system execution.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "An optimized Abstract Syntax Tree (AST) stored directly in system memory.",
+          "correct": false
+        }
+      ],
+      "explanation": "The `javac` compiler converts human-readable Java source text into platform-independent JVM bytecode stored in `.class` files. The JVM at runtime translates this bytecode into host machine instructions using interpreter and JIT compilers.",
+      "codeSnippet": "% javac Bluebird.java\n% ls\nBluebird.class  Bluebird.java\n% javap -c Bluebird.class\nCompiled from \"Bluebird.java\"\npublic class Bluebird {\n  public static void main(java.lang.String[]);\n    Code:\n       0: getstatic     #7 // Field java/lang/System.out\n       3: ldc           #13 // String Hello\n       5: invokevirtual #19 // Method println\n       8: return\n}",
+      "pitfall": "Bytecode is not machine code. A `.class` file cannot execute directly on hardware; it requires a platform-specific JVM runtime (HotSpot, OpenJ9, etc.).",
+      "citation": "Oracle JVM SE 21 Specification §2.5 / Learning Java (Loy et al.) Ch. 1"
+    },
+    {
+      "id": "mcq-01-001-02",
+      "concept": "Class Literal vs Class.forName Initialization",
+      "category": "Classloading",
+      "difficulty": "Intermediate",
+      "question": "Given class `Helper` with a static initializer `static { System.out.println(\"init\"); }`, what happens when `Class<?> c = Helper.class;` executes?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The static initializer runs immediately and prints \"init\".",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The JVM loads and links the class, but initialization is deferred until first active use.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "A `ClassNotFoundException` is thrown unless an instance of `Helper` already exists on the heap.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The JVM instantiates a default null instance of `Helper` in the young generation.",
+          "correct": false
+        }
+      ],
+      "explanation": "Evaluating a class literal (`Helper.class`) causes the classloader to load and verify the class, but does NOT trigger initialization (running <clinit>). Initialization is deferred until the first active use (instantiation, static method call, or non-constant static field access) per JLS §12.4.1.",
+      "codeSnippet": "public class Demo {\n    public static void main(String[] args) {\n        System.out.println(\"Before literal\");\n        Class<?> c = Helper.class; // <clinit> does NOT run here\n        System.out.println(\"Loaded: \" + c.getName());\n        new Helper(); // NOW <clinit> runs!\n    }\n}\nclass Helper {\n    static { System.out.println(\"Helper initialized!\"); }\n}",
+      "pitfall": "`Class.forName(\"Helper\")` initializes the class by default, whereas `Helper.class` does not. Pass `false` as the initialize argument (`Class.forName(\"Helper\", false, loader)`) if you want lazy initialization.",
+      "citation": "Java Language Specification (JLS) SE 21 §12.4.1 / Java Web Internals (Massetto) Ch. 2"
+    },
+    {
+      "id": "mcq-01-001-03",
+      "concept": "Classpath Wildcard Resolution",
+      "category": "CLI & Toolchain",
+      "difficulty": "Intermediate",
+      "question": "When launching a Java application using `-cp \"lib/*:target/classes\"`, what does the wildcard `lib/*` match?",
+      "options": [
+        {
+          "id": "A",
+          "text": "All files inside the `lib` directory, including `.jar`, `.class`, `.zip`, and `.properties` files.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Only `.jar` files in `lib`; loose `.class` files in `lib` and files in subdirectories are NOT included.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "All `.jar` and `.class` files recursively across `lib` and all its subfolders.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Only the single JAR file whose name matches the package name of the main class.",
+          "correct": false
+        }
+      ],
+      "explanation": "According to the Java tools specification, a classpath wildcard ending in `*` expands to match all files in the directory with the extension `.jar` or `.JAR`. It does not match loose `.class` files, and it does not search subdirectories recursively.",
+      "codeSnippet": "# Correct: includes all JARs in lib directory and classes in target\njava -cp \"lib/*:target/classes\" com.example.Application\n\n# Note: To include loose class files in lib/, specify lib itself:\njava -cp \"lib:lib/*:target/classes\" com.example.Application",
+      "pitfall": "Placing loose `.class` files in a directory matched by `*` will lead to `NoClassDefFoundError` or `ClassNotFoundException`. Directories containing loose classes must be added by directory path without the trailing `*`.",
+      "citation": "Oracle JDK 21 Tool Specifications: javac & java Options"
+    },
+    {
+      "id": "mcq-01-001-04",
+      "concept": "Single-File Source-Code Execution",
+      "category": "CLI & Toolchain",
+      "difficulty": "Beginner",
+      "question": "Since Java 11, how can a developer execute a standalone source file `Server.java` without running `javac` first?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`jshell --run Server.java`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`java Server.java` directly in the terminal.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`javap -run Server.java`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`jlink --source Server.java`",
+          "correct": false
+        }
+      ],
+      "explanation": "JEP 330 (Java 11+) added single-file source-code launcher support. Running `java Server.java` compiles the code in memory and immediately executes the `main` method without writing a `.class` file to disk.",
+      "codeSnippet": "# Run single file directly without prior compilation:\n% java Server.java\nServer listening on port 8080\n\n# You can also pass arguments directly:\n% java Server.java --port=9090",
+      "pitfall": "Single-file mode only works when all referenced source code is in the single file or already compiled on the classpath/module-path. It cannot compile multiple uncompiled `.java` files simultaneously without `javac`.",
+      "citation": "Oracle Java SE 21 Tools: Source-File Mode (JEP 330)"
+    },
+    {
+      "id": "mcq-01-001-05",
+      "concept": "JVM Generational Heap Structure",
+      "category": "JVM Memory",
+      "difficulty": "Intermediate",
+      "question": "In the HotSpot JVM generational heap, where are newly instantiated objects allocated by default?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Directly in the Old (Tenured) Generation.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "In the Eden space within the Young Generation.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "In Metaspace native memory.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "In the Survivor 1 (To-Space) buffer.",
+          "correct": false
+        }
+      ],
+      "explanation": "Based on the Weak Generational Hypothesis (most objects die young), the JVM allocates new objects in the Eden space of the Young Generation. During Minor GC, surviving objects are copied between Survivor spaces (S0/S1) before being promoted to Tenured/Old generation once they cross the aging threshold.",
+      "codeSnippet": "# Inspect GC allocation and generation ergonomics:\njava -XX:+PrintFlagsFinal -version | grep -i survivor\n# Key flags:\n# -XX:NewRatio=2 (Old:Young ratio)\n# -XX:SurvivorRatio=8 (Eden:Survivor ratio)\n# -XX:MaxTenuringThreshold=15",
+      "pitfall": "Exceptionally large objects (arrays exceeding the pre-tenure size threshold) may bypass Eden entirely and be allocated directly into Old Generation to avoid expensive copying in Young Gen.",
+      "citation": "Oracle HotSpot Virtual Machine Garbage Collection Tuning Guide §Generations"
+    },
+    {
+      "id": "mcq-01-001-06",
+      "concept": "Metaspace vs Heap Memory",
+      "category": "JVM Memory",
+      "difficulty": "Intermediate",
+      "question": "Where is class metadata (bytecode, method tables, constant pools) stored in modern Java (Java 8+)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "In the Permanent Generation (PermGen) inside the managed Java heap.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "In Metaspace, which resides in off-heap native memory.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "On the thread execution call stack.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Directly in the CPU L3 hardware cache.",
+          "correct": false
+        }
+      ],
+      "explanation": "PermGen was permanently removed in Java 8 and replaced with Metaspace. Metaspace stores class runtime representations in native memory outside the Java heap. By default, it auto-increases its size up to available OS memory unless bounded by `-XX:MaxMetaspaceSize`.",
+      "codeSnippet": "# Limit maximum Metaspace allocation to prevent runaway native leaks:\njava -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=256m -jar app.jar",
+      "pitfall": "Dynamic class generation (e.g. CGLIB proxies, bytecode enhancers, uncollected classloaders in hot redeployment) can still exhaust native memory, triggering `java.lang.OutOfMemoryError: Metaspace`.",
+      "citation": "Oracle HotSpot GC Tuning: Other Considerations (Metaspace)"
+    },
+    {
+      "id": "mcq-01-001-07",
+      "concept": "Diagnostic Heap Dump Generation",
+      "category": "Diagnostics & CLI",
+      "difficulty": "Intermediate",
+      "question": "Which JVM flag instructs the HotSpot runtime to automatically write a memory dump to disk when an `OutOfMemoryError` occurs?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`-XX:+EnableMemorySnapshot`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`-XX:+HeapDumpOnOutOfMemoryError`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`-Xdump:heap=auto`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`-XX:+AutoCrashDiagnostics`",
+          "correct": false
+        }
+      ],
+      "explanation": "The standard production flag `-XX:+HeapDumpOnOutOfMemoryError` tells the JVM to write an HPROF format heap dump snapshot immediately when an OutOfMemoryError is thrown. Combined with `-XX:HeapDumpPath=/path`, it guarantees post-mortem analysis data.",
+      "codeSnippet": "# Recommended production flags for memory diagnosis:\njava -Xms4g -Xmx4g \\\n     -XX:+HeapDumpOnOutOfMemoryError \\\n     -XX:HeapDumpPath=/var/log/app/heap_oom.hprof \\\n     -jar app.jar",
+      "pitfall": "Generating a heap dump on multi-gigabyte heaps pauses the process and requires substantial disk write throughput. Ensure the target filesystem has sufficient free space equal to `-Xmx`.",
+      "citation": "Oracle Java SE 21 Tools: Advanced GC Options"
+    },
+    {
+      "id": "mcq-01-001-08",
+      "concept": "Disassembling Bytecode with javap",
+      "category": "CLI & Toolchain",
+      "difficulty": "Intermediate",
+      "question": "What command-line tool included with the JDK allows developers to disassemble and inspect the bytecode instructions inside a compiled `.class` file?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`jstack`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`javap` (with flag `-c` or `-v`)",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`jcmd`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`jps`",
+          "correct": false
+        }
+      ],
+      "explanation": "`javap` is the Java class file disassembler. Running `javap -c ClassName` prints disassembled bytecode instructions. Running `javap -v ClassName` provides full verbose details including constant pool, stack depths, and local variable tables.",
+      "codeSnippet": "% javap -c -v target/classes/com/example/User.class\nClassfile /.../User.class\n  Last modified Oct 9, 2026; size 1234 bytes\n  Constant pool:\n    #1 = Methodref   #2.#3\n  public java.lang.String getName();\n    descriptor: ()Ljava/lang/String;\n    flags: (0x0001) ACC_PUBLIC\n    Code:\n      stack=1, locals=1, args_size=1\n         0: aload_0\n         1: getfield      #7 // Field name:Ljava/lang/String;\n         4: areturn",
+      "pitfall": "Do not pass the `.class` extension to `javap` when inspecting classes on the classpath (use `javap -c com.example.User`). Use the file path only when specifying a direct relative/absolute filename.",
+      "citation": "Oracle JDK 21 Tool Specifications: javap"
+    },
+    {
+      "id": "mcq-01-002-01",
+      "concept": "Equals Method Overloading vs Overriding",
+      "category": "OOP Fundamentals",
+      "difficulty": "Intermediate",
+      "question": "What is the critical defect in declaring `public boolean equals(Point other)` instead of `public boolean equals(Object other)`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The code fails to compile because `@Override` is required for all public methods.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "It overloads `equals` instead of overriding `Object.equals(Object)`, causing collections like `HashSet` and `HashMap` to fall back to reference identity (`==`).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The JVM throws a `ClassCastException` whenever an element is placed into a collection.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The method is ignored by the JVM and garbage collected.",
+          "correct": false
+        }
+      ],
+      "explanation": "Method overriding requires the exact parameter signature of the superclass method: `public boolean equals(Object o)`. Declaring `equals(Point other)` creates an overload. Because standard collections operate on `Object` references, they invoke `equals(Object)`, resulting in default reference identity comparison.",
+      "codeSnippet": "public class BrokenPoint {\n    final int x, y;\n    BrokenPoint(int x, int y) { this.x = x; this.y = y; }\n\n    // BUG: Overload! Not an override of Object.equals(Object)\n    public boolean equals(BrokenPoint other) {\n        return this.x == other.x && this.y == other.y;\n    }\n}\n\nSet<BrokenPoint> set = new HashSet<>();\nset.add(new BrokenPoint(1, 2));\n// Returns FALSE because HashSet calls equals(Object)!\nSystem.out.println(set.contains(new BrokenPoint(1, 2)));",
+      "pitfall": "Always annotate `equals` with `@Override`. If you accidentally overload the method signature, the compiler will catch it immediately.",
+      "citation": "Effective Java (Bloch) Item 10 / Learning Java (Loy et al.) Ch. 5"
+    },
+    {
+      "id": "mcq-01-002-02",
+      "concept": "Floating-Point Comparison in Value Classes",
+      "category": "Syntax & Primitives",
+      "difficulty": "Intermediate",
+      "question": "Why should `Double.compare(d1, d2) == 0` be used instead of `d1 == d2` when implementing `equals` for a class containing `double` fields?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Primitive `double` cannot be compared using `==` in Java.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`d1 == d2` evaluates `Double.NaN == Double.NaN` as `false`, violating reflexive equality in collections, whereas `Double.compare` treats `NaN` values as equal.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`Double.compare` converts double to `BigDecimal` automatically to avoid rounding drift.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`==` triggers memory boxing allocations on every check.",
+          "correct": false
+        }
+      ],
+      "explanation": "Under IEEE 754 rules, `Double.NaN == Double.NaN` evaluates to `false`. However, the general contract of `equals` requires reflexivity (`x.equals(x)` must always be `true`). `Double.compare(Double.NaN, Double.NaN) == 0` correctly evaluates to `true`, maintaining collection integrity.",
+      "codeSnippet": "double nan1 = Double.NaN;\ndouble nan2 = Double.NaN;\nSystem.out.println(nan1 == nan2); // false (IEEE 754)\nSystem.out.println(Double.compare(nan1, nan2) == 0); // true (Consistent object equality)\n\n// Also handles signed zeros:\ndouble zero = 0.0;\ndouble negZero = -0.0;\nSystem.out.println(zero == negZero); // true\nSystem.out.println(Double.compare(zero, negZero) == 0); // false (-0.0 < 0.0)",
+      "pitfall": "Never use primitive `==` on `float` or `double` fields inside `equals()`. Always use `Float.compare(f1, f2) == 0` and `Double.compare(d1, d2) == 0`.",
+      "citation": "Effective Java (Bloch) Item 10 & Item 11 / Java Language Specification §15.21.1"
+    },
+    {
+      "id": "mcq-01-002-03",
+      "concept": "Java Records Compact Constructor",
+      "category": "Modern Java",
+      "difficulty": "Beginner",
+      "question": "In a Java `record`, what is the primary purpose of a compact constructor (e.g. `public Range { ... }` without a parameter list)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "To define private helper fields that are excluded from the canonical state vector.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "To validate and normalize record components before the compiler automatically assigns them to fields.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "To bypass final field initialization and enable mutable setters.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "To allow the record to extend a custom abstract base class.",
+          "correct": false
+        }
+      ],
+      "explanation": "A compact constructor omits the explicit parameter list and the boilerplate field assignments (`this.x = x`). Developers use it to validate invariants (e.g. checking for null or range boundaries) or normalize values. The compiler implicitly inserts field assignments at the end of the constructor block.",
+      "codeSnippet": "public record Range(int low, int high) {\n    // Compact constructor:\n    public Range {\n        if (low > high) {\n            throw new IllegalArgumentException(\"low (\" + low + \") > high (\" + high + \")\");\n        }\n        // Compiler automatically does: this.low = low; this.high = high;\n    }\n}",
+      "pitfall": "Do not attempt to write `this.low = low;` inside a compact constructor; assigning directly to record fields in a compact constructor results in a compilation error.",
+      "citation": "Java SE 21 Specification: Records (JEP 395) / Learning Java Ch. 5"
+    },
+    {
+      "id": "mcq-01-002-04",
+      "concept": "Package-Private Access Modifier",
+      "category": "Access Control",
+      "difficulty": "Beginner",
+      "question": "If a class member (field or method) has NO access modifier specified (default), what is its accessibility scope?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Visible to all classes in all packages across the entire module.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Visible only within the declaring class and all its subclasses regardless of package.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "Visible to any class within the same package, but inaccessible to outside packages and subclasses in other packages.",
+          "correct": true
+        },
+        {
+          "id": "D",
+          "text": "Strictly private to the declaring class.",
+          "correct": false
+        }
+      ],
+      "explanation": "The default access modifier in Java is package-private (no keyword). It allows access only from types located within the exact same package. Unlike `protected`, it does not grant access to subclasses located in different packages.",
+      "codeSnippet": "package com.example.service;\n\npublic class AccountService {\n    // Package-private: visible to other classes in com.example.service,\n    // but hidden from outside packages.\n    void internalAuditLog(String action) {\n        System.out.println(\"Audit: \" + action);\n    }\n}",
+      "pitfall": "Developers coming from C++ or TypeScript often mistake package-private for `protected`. `protected` includes package access PLUS subclasses anywhere; default includes package access ONLY.",
+      "citation": "Effective Java (Bloch) Item 15: Minimize the accessibility of classes and members"
+    },
+    {
+      "id": "mcq-01-002-05",
+      "concept": "Sealed Classes and Permitted Subclasses",
+      "category": "Modern Java",
+      "difficulty": "Intermediate",
+      "question": "When defining a sealed interface `sealed interface Shape permits Circle, Square`, what modifier MUST every permitted subtype declare?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Every subtype must declare the `abstract` modifier.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Every subtype must declare exactly one of: `final`, `sealed`, or `non-sealed`.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Every subtype must declare the `record` modifier.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Every subtype must declare `transient`.",
+          "correct": false
+        }
+      ],
+      "explanation": "Java requires that every class or interface that extends/implements a sealed type explicitly specify its subclassing policy using one of three modifiers: `final` (prevents further subclassing), `sealed` (restricts subclassing to another specific set), or `non-sealed` (opens subclassing to any class).",
+      "codeSnippet": "public sealed interface Shape permits Circle, Square, Polygon {}\n\n// 1. final: terminates hierarchy\npublic final class Circle implements Shape {}\n\n// 2. record: implicitly final\npublic record Square(double side) implements Shape {}\n\n// 3. non-sealed: allows open extension\npublic non-sealed class Polygon implements Shape {}",
+      "pitfall": "Permitted classes must reside in the same package (or same named module) as the sealed supertype, otherwise compilation fails.",
+      "citation": "Java SE 21 Specification: Sealed Classes (JEP 409)"
+    },
+    {
+      "id": "mcq-01-002-06",
+      "concept": "Pattern Matching for switch Null Handling",
+      "category": "Modern Java",
+      "difficulty": "Intermediate",
+      "question": "In Java 21 pattern matching for `switch`, what happens by default if a `null` value is evaluated without an explicit `case null` branch?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It matches the `default` branch silently.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The switch expression throws a `NullPointerException` immediately.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The switch yields `null` without executing any branch.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It results in a compile-time syntax error.",
+          "correct": false
+        }
+      ],
+      "explanation": "Historically and in modern pattern matching, a switch statement or expression throws `NullPointerException` if the selector expression evaluates to `null`, unless an explicit `case null` (or combined `case null, default`) branch is present.",
+      "codeSnippet": "static String format(Object obj) {\n    return switch (obj) {\n        case null -> \"Value was null\"; // Handles null safely!\n        case Integer i -> \"Integer: \" + i;\n        case String s  -> \"String: \" + s;\n        default        -> \"Unknown object\";\n    };\n}",
+      "pitfall": "Assuming `default` catches `null` in a switch. In Java, `default` only matches non-null values that do not match other patterns unless written as `case null, default:`.",
+      "citation": "Java SE 21 Specification: Pattern Matching for switch (JEP 441)"
+    },
+    {
+      "id": "mcq-01-002-07",
+      "concept": "Covariant Return Types",
+      "category": "OOP Fundamentals",
+      "difficulty": "Intermediate",
+      "question": "What is a covariant return type in Java method overriding?",
+      "options": [
+        {
+          "id": "A",
+          "text": "An overridden method can return a subtype of the return type declared in the superclass method.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "An overridden method can accept broader parameter types than the superclass method.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "A method can return multiple values simultaneously using tuples.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "A method whose return type changes based on generic type arguments at runtime.",
+          "correct": false
+        }
+      ],
+      "explanation": "Since Java 5, an overriding method is permitted to declare a return type that is a subtype of the superclass method's return type (covariance). This eliminates the need for callers to cast the returned object when invoking the method on the subclass type.",
+      "codeSnippet": "public class AnimalProducer {\n    public Animal produce() { return new Animal(); }\n}\n\npublic class DogProducer extends AnimalProducer {\n    // Covariant return type: Dog is a subtype of Animal\n    @Override\n    public Dog produce() { return new Dog(); }\n}\n\nDogProducer dp = new DogProducer();\nDog myDog = dp.produce(); // No cast needed!",
+      "pitfall": "Covariance applies ONLY to return types, NEVER to parameter types. Altering parameter types creates an overload rather than an override.",
+      "citation": "Effective Java (Bloch) Item 54 / JLS §8.4.8.3"
+    },
+    {
+      "id": "mcq-01-002-08",
+      "concept": "Instance vs Class Member Storage",
+      "category": "JVM Memory",
+      "difficulty": "Beginner",
+      "question": "Where are `static` fields allocated in Java 8+, and how does their lifecycle differ from instance fields?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Static fields are allocated on the thread execution stack and destroyed when the method exits.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Static fields are stored with the Class object in the heap and persist as long as the loading ClassLoader remains alive.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Static fields are recreated every time `new` is called on the class.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Static fields are stored in the CPU registers.",
+          "correct": false
+        }
+      ],
+      "explanation": "Static fields belong to the `Class` object rather than any individual instance. In Java 8+, `Class` objects and their static fields reside in the managed heap (with metadata in Metaspace) and remain accessible throughout the lifetime of the class's defining `ClassLoader`.",
+      "codeSnippet": "public class Counter {\n    // One shared copy on the heap for the entire class:\n    public static int globalCount = 0;\n    \n    // Allocated on the heap inside each new Counter instance:\n    public int instanceCount = 0;\n}",
+      "pitfall": "Storing large collections or caches in `static` fields without eviction is the leading cause of classloader memory leaks, as these objects cannot be collected until the class itself is unloaded.",
+      "citation": "Effective Java (Bloch) Item 7: Eliminate obsolete object references"
+    },
+    {
+      "id": "mcq-01-003-01",
+      "concept": "Checked vs Unchecked Exceptions",
+      "category": "Exception Architecture",
+      "difficulty": "Beginner",
+      "question": "Which of the following exception types is an UNCHECKED exception that does NOT require declaration in a `throws` clause?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`java.io.IOException`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`java.sql.SQLException`",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`java.lang.IllegalArgumentException` (subclass of `RuntimeException`)",
+          "correct": true
+        },
+        {
+          "id": "D",
+          "text": "`java.lang.ClassNotFoundException`",
+          "correct": false
+        }
+      ],
+      "explanation": "Unchecked exceptions inherit from `java.lang.RuntimeException` or `java.lang.Error`. The compiler does not enforce handling or declaring them. They typically represent programming bugs, invariant violations, or unrecoverable conditions. All other `Throwable` subtypes are checked exceptions.",
+      "codeSnippet": "public void processAge(int age) {\n    if (age < 0) {\n        // IllegalArgumentException is unchecked; no 'throws' required\n        throw new IllegalArgumentException(\"Age cannot be negative: \" + age);\n    }\n}",
+      "pitfall": "Do not catch generic `Exception` or `Throwable` to silence checked exceptions. This inadvertently swallows unchecked runtime errors like `NullPointerException`.",
+      "citation": "Effective Java (Bloch) Item 70: Use checked exceptions for recoverable conditions and runtime exceptions for programming errors"
+    },
+    {
+      "id": "mcq-01-003-02",
+      "concept": "Try-With-Resources Close Order",
+      "category": "Resource Management",
+      "difficulty": "Intermediate",
+      "question": "In a try-with-resources statement declaring multiple resources `try (ResourceA a = new ResourceA(); ResourceB b = new ResourceB())`, in what order are the `close()` methods invoked?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`a.close()` is called first, followed by `b.close()`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`b.close()` is called first, followed by `a.close()` (reverse order of declaration).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Both resources are closed concurrently in parallel threads.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Only the resource that experienced an error is closed.",
+          "correct": false
+        }
+      ],
+      "explanation": "Try-with-resources closes resources in the reverse order of their declaration. This mirrors dependency lifecycles: if Resource B depends on Resource A, closing B first guarantees A remains open while B flushes its buffers and terminates.",
+      "codeSnippet": "try (FileInputStream fis = new FileInputStream(\"data.txt\");\n     BufferedInputStream bis = new BufferedInputStream(fis);\n     GZIPInputStream gis = new GZIPInputStream(gis)) {\n    // On exit: gis closes first, then bis, then fis!\n}",
+      "pitfall": "Declaring dependent resources outside the try-with-resources parentheses defeats the automatic reverse-order cleanup guarantee.",
+      "citation": "Effective Java (Bloch) Item 9: Prefer try-with-resources to try-finally"
+    },
+    {
+      "id": "mcq-01-003-03",
+      "concept": "Suppressed Exceptions",
+      "category": "Resource Management",
+      "difficulty": "Intermediate",
+      "question": "If both the try block AND the auto-closing `close()` method throw an exception in a try-with-resources construct, which exception is propagated to the caller?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The exception thrown inside `close()` replaces and erases the try-block exception.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The primary exception from the try block is thrown, and the `close()` exception is attached as a suppressed exception via `getSuppressed()`.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The JVM halts immediately with an uncatchable fatal error.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Both exceptions are combined into a `CompoundException`.",
+          "correct": false
+        }
+      ],
+      "explanation": "Try-with-resources preserves the original cause of failure. The exception originating from the try block is thrown, and any subsequent exception thrown during `close()` is recorded on the primary exception as a suppressed exception, retrievable via `e.getSuppressed()`.",
+      "codeSnippet": "try (BrokenResource r = new BrokenResource()) {\n    throw new IllegalStateException(\"Primary error in business logic\");\n} catch (Exception e) {\n    System.out.println(\"Caught: \" + e.getMessage()); // Primary error\n    for (Throwable suppressed : e.getSuppressed()) {\n        System.out.println(\"Suppressed: \" + suppressed.getMessage()); // Close error!\n    }\n}",
+      "pitfall": "In traditional legacy `try-finally`, an exception in `finally` completely swallowed and masked the exception from `try`, making debugging catastrophic. Try-with-resources completely fixes this.",
+      "citation": "Java Language Specification SE 21 §14.20.3 / Effective Java Item 9"
+    },
+    {
+      "id": "mcq-01-003-04",
+      "concept": "Multi-Catch Block Rules",
+      "category": "Syntax & Flow Control",
+      "difficulty": "Intermediate",
+      "question": "What restriction applies to the exception parameter in a multi-catch block `catch (IOException | SQLException e)`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The variable `e` must be explicitly reassigned inside the block.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The variable `e` is implicitly `final` and cannot be reassigned; also, the caught types must not have an inheritance relationship.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Only unchecked exceptions can be caught in multi-catch blocks.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The block must rethrow `e` at the end.",
+          "correct": false
+        }
+      ],
+      "explanation": "In multi-catch statements: 1) The exception parameter `e` is implicitly final and cannot be reassigned. 2) If two caught types are related by subclassing (e.g. `FileNotFoundException | IOException`), the compiler rejects the code with an error because the subtype branch is unreachable.",
+      "codeSnippet": "// Valid multi-catch:\ntry {\n    executeDbQuery();\n} catch (SQLException | IOException e) {\n    // e is implicitly final: e = new IOException(); -> COMPILE ERROR!\n    logger.error(\"Operation failed\", e);\n}\n\n// INVALID (Compile Error: FileNotFoundException is a subclass of IOException):\n// catch (FileNotFoundException | IOException e) { ... }",
+      "pitfall": "Listing a subclass and its superclass in the same multi-catch generates a compile-time error: 'Types in multi-catch must be disjoint'.",
+      "citation": "Java Language Specification §14.20 / Learning Java Ch. 6"
+    },
+    {
+      "id": "mcq-01-003-05",
+      "concept": "Finally Block Return Statement Dangers",
+      "category": "Syntax & Flow Control",
+      "difficulty": "Intermediate",
+      "question": "What happens if a method executes `return 1;` inside a `try` block, but also executes `return 2;` inside its `finally` block?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The method returns `1`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The method returns `2`, discarding the `return 1` and swallowing any exception that may have been thrown in the try block.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The code fails to compile due to conflicting return values.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The method returns an average or tuple `(1, 2)`.",
+          "correct": false
+        }
+      ],
+      "explanation": "A return statement in a `finally` block overrides any preceding return statement or unhandled exception in the `try` or `catch` blocks. The finally block always completes abrupt termination, which can quietly swallow critical errors.",
+      "codeSnippet": "public static int dangerousMethod() {\n    try {\n        throw new RuntimeException(\"Fatal failure!\");\n    } finally {\n        return 42; // SWALLOWS the RuntimeException silently!\n    }\n}\n// Calling dangerousMethod() returns 42 and does NOT throw!",
+      "pitfall": "Never place `return`, `throw`, `break`, or `continue` inside a `finally` block. Doing so discards pending exceptions and makes diagnosing defects almost impossible.",
+      "citation": "Effective Java Item 9 / JLS §14.20.2"
+    },
+    {
+      "id": "mcq-01-003-06",
+      "concept": "Failure Atomicity",
+      "category": "Architecture & Design",
+      "difficulty": "Advanced",
+      "question": "What does the principle of 'Failure Atomicity' require when a method encounters a failure during execution?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The entire JVM process must immediately abort without writing to disk.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "A failed method invocation should leave the target object in the state that it was in prior to the invocation.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Every method must be wrapped in a database JTA transaction.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "All exceptions must be caught and replaced with boolean `false` return codes.",
+          "correct": false
+        }
+      ],
+      "explanation": "Failure atomicity means that if an operation fails midway through execution, the object should remain in its original valid state rather than in a half-mutated, corrupted state. Ways to achieve this include: checking parameter validity before mutating state, performing mutations on temporary copies, or writing recovery rollbacks.",
+      "codeSnippet": "public void deposit(BigDecimal amount) {\n    // Check arguments BEFORE mutating state to achieve failure atomicity:\n    if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {\n        throw new IllegalArgumentException(\"Invalid amount: \" + amount);\n    }\n    this.balance = this.balance.add(amount);\n}",
+      "pitfall": "Mutating internal object state before validating secondary arguments leaves the object corrupted if an exception occurs mid-method.",
+      "citation": "Effective Java (Bloch) Item 76: Strive for failure atomicity"
+    },
+    {
+      "id": "mcq-01-003-07",
+      "concept": "AutoCloseable vs Closeable",
+      "category": "Resource Management",
+      "difficulty": "Intermediate",
+      "question": "How does Java's `java.lang.AutoCloseable` interface differ from `java.io.Closeable`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`AutoCloseable`'s `close()` method is declared to throw `Exception`, whereas `Closeable`'s `close()` is restricted to throwing `IOException`.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "`AutoCloseable` can only be used with files, while `Closeable` can be used with sockets.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`Closeable` is asynchronous, while `AutoCloseable` is blocking.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`AutoCloseable` requires the `@Override` annotation on all constructor calls.",
+          "correct": false
+        }
+      ],
+      "explanation": "`AutoCloseable` (introduced in Java 7 for try-with-resources) declares `void close() throws Exception`, allowing non-I/O resources (like database connections) to throw specific exceptions. `Closeable` is a sub-interface that specializes `close()` to `throws IOException` for stream compatibility.",
+      "codeSnippet": "public class CustomResource implements AutoCloseable {\n    @Override\n    // Best practice: declare specific exception (or no exception) instead of raw Exception\n    public void close() throws SQLException {\n        dbConnection.close();\n    }\n}",
+      "pitfall": "When implementing `AutoCloseable`, avoid declaring `throws Exception` on your `close()` method if possible. Declare the specific exception your resource actually throws so callers don't have to catch raw `Exception`.",
+      "citation": "Java SE 21 API Specification: java.lang.AutoCloseable"
+    },
+    {
+      "id": "mcq-01-003-08",
+      "concept": "Catching Error Subclasses",
+      "category": "Exception Architecture",
+      "difficulty": "Intermediate",
+      "question": "Why is it considered dangerous practice to catch `java.lang.Error` (or `Throwable` without rethrowing)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Errors are checked exceptions and cannot be caught without a custom compiler plugin.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`Error` indicates severe JVM-level conditions (such as `OutOfMemoryError`, `StackOverflowError`, or linkage failures) from which a program should not attempt recovery.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Catching `Error` causes the JVM garbage collector to permanently freeze.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The Java compiler automatically converts `catch (Error e)` into a no-op.",
+          "correct": false
+        }
+      ],
+      "explanation": "`Error` indicates problems from which typical applications cannot recover (e.g. `VirtualMachineError`, `OutOfMemoryError`, `LinkageError`). Catching `Error` and continuing execution leaves the JVM in an unstable, unpredictable state where invariants cannot be trusted.",
+      "codeSnippet": "// Dangerous Anti-Pattern:\ntry {\n    doWork();\n} catch (Throwable t) { // Catches Error, OOM, StackOverflow!\n    // Swallowing this prevents the JVM from failing fast!\n    logger.warn(\"Ignored: \" + t);\n}",
+      "pitfall": "If you must catch `Throwable` (e.g. in a top-level framework dispatcher thread), always log thoroughly and rethrow or cleanly restart the worker thread.",
+      "citation": "Java Language Specification §11.1.1 / Effective Java Item 70"
+    },
+    {
+      "id": "mcq-01-004-01",
+      "concept": "The equals and hashCode Contract",
+      "category": "Core Contracts",
+      "difficulty": "Beginner",
+      "question": "What is the mandatory rule dictated by the Java contract between `equals()` and `hashCode()`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "If two objects have the same hash code, they MUST be equal according to `equals()`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "If two objects are equal according to `equals()`, their `hashCode()` methods MUST return the exact same integer value.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Every object must return a unique positive prime number from `hashCode()`.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The `hashCode()` method cannot be overridden without making the class final.",
+          "correct": false
+        }
+      ],
+      "explanation": "The contract states: If `o1.equals(o2)` is true, then `o1.hashCode() == o2.hashCode()` MUST be true. The reverse is not required: unequal objects may share the same hash code (a hash collision). Failing this contract breaks hash-based collections (`HashMap`, `HashSet`).",
+      "codeSnippet": "public final class PhoneNumber {\n    private final short areaCode, prefix, lineNum;\n\n    @Override\n    public boolean equals(Object o) {\n        if (o == this) return true;\n        if (!(o instanceof PhoneNumber pn)) return false;\n        return pn.areaCode == areaCode && pn.prefix == prefix && pn.lineNum == lineNum;\n    }\n\n    @Override\n    public int hashCode() {\n        return Objects.hash(areaCode, prefix, lineNum);\n    }\n}",
+      "pitfall": "Overriding `equals()` without overriding `hashCode()` is a fatal error. Equal objects placed in a `HashMap` will hash into different buckets and will never be found on lookup.",
+      "citation": "Effective Java (Bloch) Item 11: Always override hashCode when you override equals"
+    },
+    {
+      "id": "mcq-01-004-02",
+      "concept": "Mutable Keys in Hash Collections",
+      "category": "Collections & Hashing",
+      "difficulty": "Intermediate",
+      "question": "What happens if an object is added as a key in a `HashMap`, and subsequent code mutates a field that affects the object's `hashCode()`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The `HashMap` automatically detects the change and re-hashes the entry to the new bucket.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The `HashMap` throws a `ConcurrentModificationException` immediately.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "The key becomes 'lost' in the old bucket; `map.get(key)` returns `null` because the new hash code points to a different bucket.",
+          "correct": true
+        },
+        {
+          "id": "D",
+          "text": "The JVM rolls back the field mutation to preserve map consistency.",
+          "correct": false
+        }
+      ],
+      "explanation": "`HashMap` determines which bucket stores an entry using the key's hash code at insertion time. If you mutate fields that change `hashCode()`, subsequent lookups will search a different bucket (based on the new hash) and fail to find the entry, causing memory leaks and missing data.",
+      "codeSnippet": "Map<MutableKey, String> map = new HashMap<>();\nMutableKey key = new MutableKey(\"Initial\");\nmap.put(key, \"TargetData\");\n\nkey.setName(\"Modified\"); // Mutates hashCode!\n\n// Returns null even though key is the exact same reference!\nSystem.out.println(map.get(key));",
+      "pitfall": "Always use immutable objects (like `String`, `Integer`, `UUID`, or Java `records`) as keys in `HashMap` and elements in `HashSet`.",
+      "citation": "Java Generics and Collections (Naftalin & Wadler) Ch. 13 / Effective Java Item 17"
+    },
+    {
+      "id": "mcq-01-004-03",
+      "concept": "Defensive Copying in Constructors",
+      "category": "Immutability & Security",
+      "difficulty": "Intermediate",
+      "question": "Why should defensive copies of mutable constructor arguments be made BEFORE verifying their validity parameters?",
+      "options": [
+        {
+          "id": "A",
+          "text": "To prevent Time-of-Check to Time-of-Use (TOCTOU) race condition attacks from another thread mutating the object between check and copy.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "Because Java requires all copies to be stored in the Metaspace.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "To ensure the garbage collector can reclaim the parameter immediately.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "To automatically convert checked exceptions to unchecked runtime exceptions.",
+          "correct": false
+        }
+      ],
+      "explanation": "If you check validity on the incoming parameter reference before copying it, another malicious or concurrent thread can alter the parameter after your check but before you store it (TOCTOU attack). Making the copy first and validating the copy eliminates this window.",
+      "codeSnippet": "public final class Period {\n    private final Date start, end;\n\n    public Period(Date start, Date end) {\n        // 1. Defensively copy FIRST:\n        this.start = new Date(start.getTime());\n        this.end = new Date(end.getTime());\n\n        // 2. Validate the COPIES, not the parameters:\n        if (this.start.compareTo(this.end) > 0) {\n            throw new IllegalArgumentException(this.start + \" after \" + this.end);\n        }\n    }\n}",
+      "pitfall": "Do not use the parameter's `clone()` method for defensive copying of parameters whose type can be subclassed by untrusted parties. Use constructors or static factories.",
+      "citation": "Effective Java (Bloch) Item 50: Make defensive copies when needed"
+    },
+    {
+      "id": "mcq-01-004-04",
+      "concept": "BigDecimal equals vs compareTo",
+      "category": "Core Contracts",
+      "difficulty": "Intermediate",
+      "question": "Given `BigDecimal a = new BigDecimal(\"2.0\");` and `BigDecimal b = new BigDecimal(\"2.00\");`, what are the results of `a.equals(b)` and `a.compareTo(b) == 0`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`a.equals(b)` is `true`, and `a.compareTo(b) == 0` is `true`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`a.equals(b)` is `false` (different scale), but `a.compareTo(b) == 0` is `true` (same numerical value).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`a.equals(b)` is `true`, but `a.compareTo(b) == 0` is `false`.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Both evaluate to `false` because they have distinct heap addresses.",
+          "correct": false
+        }
+      ],
+      "explanation": "`BigDecimal.equals()` checks both the numerical value AND the scale (number of digits to the right of decimal point). `2.0` has scale 1, while `2.00` has scale 2, so `equals()` returns `false`. However, `compareTo()` compares only numerical magnitude, so `compareTo()` returns `0`.",
+      "codeSnippet": "BigDecimal a = new BigDecimal(\"2.0\");\nBigDecimal b = new BigDecimal(\"2.00\");\n\nSet<BigDecimal> hashSet = new HashSet<>();\nhashSet.add(a); hashSet.add(b);\nSystem.out.println(hashSet.size()); // 2! (uses equals)\n\nSet<BigDecimal> treeSet = new TreeSet<>();\ntreeSet.add(a); treeSet.add(b);\nSystem.out.println(treeSet.size()); // 1! (uses compareTo)",
+      "pitfall": "This asymmetry makes `BigDecimal`'s `Comparable` interface inconsistent with `equals`. Using `BigDecimal` in `HashSet` versus `TreeSet` yields completely different set sizes.",
+      "citation": "Effective Java (Bloch) Item 12 / Java API java.math.BigDecimal"
+    },
+    {
+      "id": "mcq-01-004-05",
+      "concept": "Integer Wrapper Cache Range",
+      "category": "Syntax & Primitives",
+      "difficulty": "Beginner",
+      "question": "Why does `Integer a = 100; Integer b = 100; a == b` evaluate to `true`, but `Integer c = 1000; Integer d = 1000; c == d` evaluates to `false`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Numbers above 127 overflow the stack and must be moved to off-heap memory.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Java caches boxed `Integer` instances for values between -128 and 127 by default, so autoboxing returns the same cached reference for 100, but creates distinct heap objects for 1000.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The equality operator `==` switches to floating-point arithmetic for values above 255.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Numbers above 127 require a 64-bit Long conversion.",
+          "correct": false
+        }
+      ],
+      "explanation": "Java autoboxing utilizes `Integer.valueOf(int)`. The JLS mandates that values in the range `-128` to `127` (inclusive) are cached in `IntegerCache`. Comparing boxed wrappers with `==` checks reference identity, which succeeds for cached instances but fails for newly allocated heap instances outside the cache.",
+      "codeSnippet": "Integer a = 100, b = 100;\nSystem.out.println(a == b); // true (same cached instance)\n\nInteger c = 1000, d = 1000;\nSystem.out.println(c == d); // false (different heap objects!)\nSystem.out.println(c.equals(d)); // true (ALWAYS use .equals for wrappers!)",
+      "pitfall": "Never compare wrapper types (`Integer`, `Long`, `Character`) with `==`. Always use `.equals()` or primitive unboxing.",
+      "citation": "Java Language Specification SE 21 §5.1.7: Boxing Conversion"
+    },
+    {
+      "id": "mcq-01-004-06",
+      "concept": "Records Shallow Immutability",
+      "category": "Modern Java",
+      "difficulty": "Intermediate",
+      "question": "If a Java record is defined as `public record Team(String name, List<String> members) {}`, is the `Team` instance deeply immutable?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Yes, the Java compiler automatically creates an unmodifiable copy of all collection components.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "No, records provide shallow immutability (the fields are final references), but the contents of the referenced `List` can still be mutated by external callers.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Yes, records prohibit passing mutable collections during instantiation.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "No, record fields can be reassigned using generated setter methods.",
+          "correct": false
+        }
+      ],
+      "explanation": "Records guarantee that component fields are `private final` references. However, if a component points to a mutable object (like `ArrayList`), external callers can mutate that list's contents. To ensure true immutability, wrap mutable collections in `List.copyOf()` inside a compact constructor.",
+      "codeSnippet": "public record Team(String name, List<String> members) {\n    // Defensively copy to enforce deep immutability:\n    public Team {\n        members = List.copyOf(members); // Unmodifiable defensive copy!\n    }\n}",
+      "pitfall": "Assuming records make everything inside them immutable. If a record contains a mutable collection or date, callers can mutate its internal state unless you make defensive copies.",
+      "citation": "Java SE 21 Specification: Records (JEP 395)"
+    },
+    {
+      "id": "mcq-01-004-07",
+      "concept": "String Interning and Literal Pooling",
+      "category": "JVM Memory",
+      "difficulty": "Beginner",
+      "question": "Where are string literals like `String s = \"hello\";` stored in the JVM, and how does the string pool behave?",
+      "options": [
+        {
+          "id": "A",
+          "text": "In the thread execution stack, destroyed upon method exit.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "In the String Constant Pool inside the Java heap, where identical literal strings share a single cached object.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "In the Metaspace alongside native C++ pointers.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "In the Eden generation, collected on every Minor GC.",
+          "correct": false
+        }
+      ],
+      "explanation": "The String Constant Pool resides inside the main Java heap. When string literals are evaluated, the JVM checks the pool. If an identical sequence already exists, the existing instance reference is returned, deduplicating memory.",
+      "codeSnippet": "String s1 = \"mastery\";\nString s2 = \"mastery\";\nString s3 = new String(\"mastery\");\n\nSystem.out.println(s1 == s2); // true (same pooled reference)\nSystem.out.println(s1 == s3); // false (s3 is an explicit new heap object!)\nSystem.out.println(s1.equals(s3)); // true (content equality)",
+      "pitfall": "Calling `new String(\"literal\")` explicitly creates an unnecessary redundant heap object. Never use `new String()` unless specifically forced by isolated locking requirements.",
+      "citation": "Effective Java (Bloch) Item 6: Avoid creating unnecessary objects"
+    },
+    {
+      "id": "mcq-01-004-08",
+      "concept": "Consistent Comparator Contract",
+      "category": "Core Contracts",
+      "difficulty": "Intermediate",
+      "question": "What potential issue occurs when sorting elements using a Comparator implemented as `(a, b) -> a.getValue() - b.getValue()`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The comparator will fail to compile because lambda expressions cannot return integer primitives.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Integer subtraction can overflow or underflow (e.g. `Integer.MIN_VALUE - 1`), causing the comparator to return inverted comparison signs and violating transitivity.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The comparator executes in O(N^2) time regardless of sorting algorithm.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The JVM throws a `ClassCastException`.",
+          "correct": false
+        }
+      ],
+      "explanation": "Using subtraction (`a - b`) for comparisons is notoriously bug-prone due to integer overflow. If `a` is a large positive number and `b` is a large negative number, `a - b` overflows to a negative value, reporting that `a < b` when `a > b`. Always use `Integer.compare(a, b)` or `Comparator.comparingInt()`.",
+      "codeSnippet": "// DANGEROUS:\nComparator<Item> badComp = (x, y) -> x.score - y.score; // Can overflow!\n\n// SAFE AND RECOMMENDED:\nComparator<Item> goodComp = Comparator.comparingInt(Item::getScore);\n// Or:\nComparator<Item> safeComp = (x, y) -> Integer.compare(x.score, y.score);",
+      "pitfall": "Never use subtraction-based comparison logic for integers, longs, or floating-point numbers in `Comparator` or `Comparable` implementations.",
+      "citation": "Effective Java (Bloch) Item 14: Consider implementing Comparable"
+    },
+    {
+      "id": "mcq-01-005-01",
+      "concept": "Byte Streams vs Character Streams",
+      "category": "I/O Fundamentals",
+      "difficulty": "Beginner",
+      "question": "What is the key difference between `InputStream`/`OutputStream` and `Reader`/`Writer` in the `java.io` package?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`InputStream`/`OutputStream` handle raw 8-bit binary bytes, while `Reader`/`Writer` handle 16-bit Unicode characters with character encoding translation.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "`Reader`/`Writer` are asynchronous, while `InputStream`/`OutputStream` are synchronous.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`InputStream`/`OutputStream` only work with network sockets.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`Reader`/`Writer` do not support buffering.",
+          "correct": false
+        }
+      ],
+      "explanation": "`InputStream` and `OutputStream` process streams of raw binary bytes (8-bit). `Reader` and `Writer` process text data (Unicode characters) and automatically handle encoding and decoding between byte sequences and characters using a specified `Charset`.",
+      "codeSnippet": "// Converting a binary stream to a character reader with explicit UTF-8:\nInputStream is = new FileInputStream(\"document.txt\");\nReader reader = new InputStreamReader(is, StandardCharsets.UTF_8);",
+      "pitfall": "Using byte streams to read text files containing non-ASCII characters leads to corrupted multi-byte UTF-8 sequences. Always use Readers or `Files.readString()` with `StandardCharsets.UTF_8`.",
+      "citation": "Oracle Java SE 21 Tools & I/O Guide / Learning Java Ch. 11"
+    },
+    {
+      "id": "mcq-01-005-02",
+      "concept": "NIO.2 Path and Files Utility",
+      "category": "NIO.2",
+      "difficulty": "Beginner",
+      "question": "What is the recommended modern approach in Java 11+ to read the entire contents of a UTF-8 text file into a `String`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`new String(new FileInputStream(file).readAllBytes())` without specifying charset.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`Files.readString(Path.of(\"file.txt\"), StandardCharsets.UTF_8)`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Creating a `StringBuffer` and appending line-by-line using `Scanner`.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`System.load(\"file.txt\")`",
+          "correct": false
+        }
+      ],
+      "explanation": "`Files.readString(Path)` (introduced in Java 11) is the concise, standard method to read small-to-medium files into memory. It defaults to UTF-8 if charset is omitted, manages resource closing cleanly, and performs direct NIO buffer reads.",
+      "codeSnippet": "Path path = Path.of(\"config.json\");\n\n// Read full string:\nString content = Files.readString(path, StandardCharsets.UTF_8);\n\n// Write string directly:\nFiles.writeString(path, \"{\\\"status\\\": \\\"ok\\\"}\", StandardCharsets.UTF_8);",
+      "pitfall": "Do not use `Files.readString()` or `Files.readAllBytes()` on huge multi-gigabyte log files, as this loads the entire file into the JVM heap and can trigger an `OutOfMemoryError`. Use `Files.lines(path)` with streams for large files.",
+      "citation": "Oracle Java SE 21 API: java.nio.file.Files"
+    },
+    {
+      "id": "mcq-01-005-03",
+      "concept": "Closing Streams with Files.lines()",
+      "category": "NIO.2",
+      "difficulty": "Intermediate",
+      "question": "Why MUST `Files.lines(Path)` be wrapped inside a try-with-resources statement when reading file lines as a `Stream<String>`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Because `Files.lines` will not execute without a try block.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Because the returned `Stream<String>` holds an open underlying file channel that is only closed when `stream.close()` is invoked.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Because the compiler checks for `FileNotFoundException` at every stream intermediate step.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Because lines are decrypted on the fly.",
+          "correct": false
+        }
+      ],
+      "explanation": "`Files.lines(path)` returns a lazy stream backed by an open file handle. Unlike most Java streams, it implements `AutoCloseable`. Failing to close it in a try-with-resources statement leaks file descriptors, eventually causing `Too many open files` OS errors.",
+      "codeSnippet": "// PROPER RESOURCE MANAGEMENT:\ntry (Stream<String> lines = Files.lines(Path.of(\"large.log\"))) {\n    lines.filter(line -> line.contains(\"ERROR\"))\n         .limit(50)\n         .forEach(System.out::println);\n} // Underlying file handle cleanly closed here!",
+      "pitfall": "Writing `Files.lines(path).filter(...).forEach(...)` directly without try-with-resources leaks open file descriptors in production applications.",
+      "citation": "Oracle Java SE 21 API: java.nio.file.Files#lines"
+    },
+    {
+      "id": "mcq-01-005-04",
+      "concept": "The Purpose of Buffering in I/O",
+      "category": "I/O Performance",
+      "difficulty": "Beginner",
+      "question": "What is the primary performance benefit of wrapping an `InputStream` in a `BufferedInputStream`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It compresses stream data in memory to reduce heap usage.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "It reduces expensive kernel system calls (`read`/`write`) by reading chunks of data into an internal memory buffer (default 8KB).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It encrypts the stream using AES-256 automatically.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It converts blocking I/O into non-blocking epoll sockets.",
+          "correct": false
+        }
+      ],
+      "explanation": "Standard unbuffered I/O issues a hardware/OS system call for each single byte read (`read()`), which introduces substantial context-switching overhead. `BufferedInputStream` reads an 8KB block into user-space memory in a single system call and serves subsequent reads from that buffer.",
+      "codeSnippet": "// High-performance reading:\ntry (InputStream raw = new FileInputStream(\"large.bin\");\n     BufferedInputStream buffered = new BufferedInputStream(raw, 32768)) { // 32KB buffer\n    int b;\n    while ((b = buffered.read()) != -1) {\n        // Process byte from memory buffer\n    }\n}",
+      "pitfall": "Failing to `flush()` or `close()` a `BufferedOutputStream` or `BufferedWriter` means unwritten buffered data in memory may never be flushed to the destination file before termination.",
+      "citation": "Java Web Internals (Massetto) Ch. 3 / Learning Java Ch. 11"
+    },
+    {
+      "id": "mcq-01-005-05",
+      "concept": "Module System exports vs opens",
+      "category": "Java Module System (JPMS)",
+      "difficulty": "Intermediate",
+      "question": "In a `module-info.java` file, what is the crucial distinction between the `exports` and `opens` directives?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`exports` grants compile-time and runtime public access, while `opens` grants deep reflection access (even to private members) at runtime.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "`exports` is for interfaces, while `opens` is for concrete classes.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`opens` makes the module public to Maven Central.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`exports` is deprecated in Java 21 in favor of `requires`.",
+          "correct": false
+        }
+      ],
+      "explanation": "`exports pkg;` allows other modules to compile against and access `public` types in `pkg` at compile-time and runtime. `opens pkg;` allows runtime reflection frameworks (like Spring, Jackson, or Hibernate) to access even `private` fields and methods via `setAccessible(true)` without granting compile-time access.",
+      "codeSnippet": "module com.example.model {\n    requires com.fasterxml.jackson.databind;\n    \n    // Compile-time public access for other modules:\n    exports com.example.model.dto;\n    \n    // Runtime reflection only for Jackson deserialization:\n    opens com.example.model.dto to com.fasterxml.jackson.databind;\n}",
+      "pitfall": "If Jackson or Spring cannot deserialize your private DTO fields in a modular project, you likely forgot an `opens` directive in `module-info.java`.",
+      "citation": "Java Platform Module System (JEP 261) / Enterprise Java Design Patterns (Eisele) Ch. 2"
+    },
+    {
+      "id": "mcq-01-005-06",
+      "concept": "Module requires transitive Directive",
+      "category": "Java Module System (JPMS)",
+      "difficulty": "Intermediate",
+      "question": "What does `requires transitive <module_name>;` achieve in a `module-info.java` declaration?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It downloads the dependency transitively from Maven repositories at startup.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Any other module that requires this module automatically gains readability to the transitively required module as well (implied readability).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It forces the dependency to be bundled inside the final JAR archive.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It allows circular dependencies between two modules.",
+          "correct": false
+        }
+      ],
+      "explanation": "`requires transitive M;` creates implied readability. If module B `requires transitive C;` and module A `requires B;`, module A can read types in module C without explicitly declaring `requires C;`. This is essential when public methods in B return types from C.",
+      "codeSnippet": "// Module: java.sql\nmodule java.sql {\n    // java.logging is required transitively because java.sql public APIs expose logging types:\n    requires transitive java.logging;\n    requires transitive java.xml;\n    exports java.sql;\n}",
+      "pitfall": "If your module's public API methods return or accept types from an external library, you must declare `requires transitive`, otherwise client code won't compile without extra manual declarations.",
+      "citation": "Oracle Java SE 21 Modules Specification"
+    },
+    {
+      "id": "mcq-01-005-07",
+      "concept": "ServiceLoader in Modular Java",
+      "category": "Java Module System (JPMS)",
+      "difficulty": "Advanced",
+      "question": "Which pair of `module-info.java` directives is used to register and consume decoupled service provider implementations via `ServiceLoader`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`imports` and `exports`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`provides <Interface> with <Implementation>` and `uses <Interface>`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`binds` and `resolves`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`injects` and `implements`",
+          "correct": false
+        }
+      ],
+      "explanation": "JPMS provides native loose coupling for the Service Provider Interface (SPI) pattern. A provider module declares `provides Interface with ImplementationClass;`, while a consumer module declares `uses Interface;`. The consumer then discovers instances at runtime via `ServiceLoader.load(Interface.class)`.",
+      "codeSnippet": "// In provider module:\nmodule com.example.codec.mp3 {\n    requires com.example.codec.api;\n    provides com.example.codec.api.AudioCodec with com.example.codec.mp3.Mp3Codec;\n}\n\n// In consumer module:\nmodule com.example.player {\n    requires com.example.codec.api;\n    uses com.example.codec.api.AudioCodec;\n}\n\n// Consuming via code:\nServiceLoader<AudioCodec> loader = ServiceLoader.load(AudioCodec.class);\nfor (AudioCodec codec : loader) { codec.decode(data); }",
+      "pitfall": "Forgetting the `uses` directive in the consumer module results in `ServiceLoader` returning an empty collection even if the provider module is present on the module path.",
+      "citation": "Oracle Java SE 21 Docs: java.util.ServiceLoader"
+    },
+    {
+      "id": "mcq-01-005-08",
+      "concept": "The Unnamed Module and Classpath",
+      "category": "Java Module System (JPMS)",
+      "difficulty": "Intermediate",
+      "question": "What happens to legacy classes loaded from the traditional classpath (`-cp`) when running on Java 9+?",
+      "options": [
+        {
+          "id": "A",
+          "text": "They fail to load unless converted to modular JARs.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "They are placed into the 'unnamed module', which can read all modules and exports all its packages to everyone.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "They are executed in a legacy 32-bit compatibility sandbox.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "They can only access the `java.base` module.",
+          "correct": false
+        }
+      ],
+      "explanation": "To preserve backward compatibility, any JAR or class loaded from the classpath is assigned to the 'unnamed module'. The unnamed module can read all other modules on the module path and exports all of its own packages freely.",
+      "codeSnippet": "# Legacy app running on classpath:\njava -cp \"lib/*:app.jar\" com.example.Main\n# All classes in app.jar reside in the unnamed module and can access java.base, java.sql, etc.",
+      "pitfall": "While the unnamed module can read all named modules, named modules on the module path CANNOT read the unnamed module. You cannot add a `requires` statement targeting the unnamed module.",
+      "citation": "Understanding Java 9 Modules / Oracle JPMS Guide"
+    },
+    {
+      "id": "mcq-01-006-01",
+      "concept": "Static Factory Methods vs Constructors",
+      "category": "Creational Patterns",
+      "difficulty": "Beginner",
+      "question": "According to Joshua Bloch (Effective Java Item 1), what is a major advantage of static factory methods over public constructors?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Static factories run on dedicated background threads.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Unlike constructors, static factories have meaningful names, can return cached instances, and can return any subtype of their return type.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Static factories eliminate all garbage collection overhead.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Static factories allow overriding in subclasses.",
+          "correct": false
+        }
+      ],
+      "explanation": "Constructors are constrained by having the same name as the class and cannot convey intent cleanly when multiple constructors have identical parameter types. Static factories (e.g. `BigInteger.probablePrime()`, `List.of()`, `Boolean.valueOf()`) have descriptive names, can return pre-cached immutable instances, and can return unexported subtypes.",
+      "codeSnippet": "// Descriptive names and instance caching:\npublic static Boolean valueOf(boolean b) {\n    return b ? Boolean.TRUE : Boolean.FALSE;\n}\n\n// Subtype flexibility:\npublic static List<T> of(T... elements) {\n    return elements.length == 0 ? Collections.emptyList() : new ImmutableList<>(elements);\n}",
+      "pitfall": "Classes without public or protected constructors cannot be subclassed. While often desirable (favoring composition), it prevents inheritance if external extension was intended.",
+      "citation": "Effective Java (Bloch) Item 1: Consider static factory methods instead of constructors"
+    },
+    {
+      "id": "mcq-01-006-02",
+      "concept": "The Builder Pattern for Many Parameters",
+      "category": "Creational Patterns",
+      "difficulty": "Beginner",
+      "question": "When should the Builder pattern be favored over telescoping constructors or JavaBeans setters?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Only when the class has fewer than two fields.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "When a class has many constructor parameters (especially optional or identically-typed fields), combining constructor safety with fluent readability.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "When performance requires mutating static variables.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Only when building GUI components with Swing.",
+          "correct": false
+        }
+      ],
+      "explanation": "Telescoping constructors become unreadable and error-prone when many parameters share types. The JavaBeans pattern (parameterless constructor + setters) allows objects to exist in an inconsistent intermediate state and precludes immutability. The Builder pattern provides fluent, named parameter simulation while creating an immutable object in a single `build()` step.",
+      "codeSnippet": "NutritionFacts cocaCola = new NutritionFacts.Builder(240, 8) // Required\n        .calories(100)                                       // Optional\n        .sodium(35)\n        .carbohydrate(27)\n        .build();",
+      "pitfall": "Builders have a small object creation cost for the builder itself. For simple classes with only 1-3 mandatory fields, standard constructors or records are simpler.",
+      "citation": "Effective Java (Bloch) Item 2: Consider a builder when faced with many constructor parameters"
+    },
+    {
+      "id": "mcq-01-006-03",
+      "concept": "Singleton via Single-Element Enum",
+      "category": "Creational Patterns",
+      "difficulty": "Intermediate",
+      "question": "Why does Joshua Bloch consider a single-element `enum` the best way to implement a Singleton in Java?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Enums use less CPU cache memory than standard classes.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "It provides ironclad guarantees against multiple instantiation, even in the face of sophisticated serialization or reflection attacks.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Enums allow dynamic hot-reloading without restarting the JVM.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Enums can extend arbitrary base classes.",
+          "correct": false
+        }
+      ],
+      "explanation": "Traditional singletons require complex `readResolve` methods to prevent deserialization from creating duplicate instances, and are vulnerable to reflection attacks via `Constructor.setAccessible(true)`. The JVM natively guarantees that enum constants are instantiated exactly once and prohibits reflective constructor instantiation.",
+      "codeSnippet": "public enum Elvis {\n    INSTANCE;\n\n    public void leaveTheBuilding() {\n        System.out.println(\"Elvis has left the building!\");\n    }\n}\n\n// Usage:\nElvis.INSTANCE.leaveTheBuilding();",
+      "pitfall": "You cannot use an enum singleton if your singleton must extend a superclass other than `java.lang.Enum` (though it can implement arbitrary interfaces).",
+      "citation": "Effective Java (Bloch) Item 3: Enforce the singleton property with a private constructor or an enum type"
+    },
+    {
+      "id": "mcq-01-006-04",
+      "concept": "Noninstantiable Utility Classes",
+      "category": "OOP Design",
+      "difficulty": "Beginner",
+      "question": "How should utility classes composed purely of static methods (e.g. `java.lang.Math`, `java.util.Collections`) be designed to prevent instantiation?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Declare the class `abstract`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Suppress the default constructor with an explicit private constructor that throws an `AssertionError`.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Do not declare any constructors in the source code.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Annotate the class with `@Transient`.",
+          "correct": false
+        }
+      ],
+      "explanation": "If no constructor is declared, `javac` automatically generates a public parameterless default constructor. Making the class `abstract` is misleading because it implies the class is meant to be subclassed. A private constructor prevents external instantiation and subclassing; throwing `AssertionError` inside guards against accidental internal/reflective calls.",
+      "codeSnippet": "public final class StringUtils {\n    // Suppress default constructor for noninstantiability\n    private StringUtils() {\n        throw new AssertionError(\"No StringUtils instances for you!\");\n    }\n\n    public static boolean isBlank(String s) { return s == null || s.isBlank(); }\n}",
+      "pitfall": "Making a utility class `abstract` does NOT prevent instantiation: a client can simply subclass it and instantiate the subclass.",
+      "citation": "Effective Java (Bloch) Item 4: Enforce noninstantiability with a private constructor"
+    },
+    {
+      "id": "mcq-01-006-05",
+      "concept": "Dependency Injection over Hardcoded Resources",
+      "category": "Architectural Patterns",
+      "difficulty": "Beginner",
+      "question": "Why does Effective Java Item 5 advise against utility classes or singletons for classes whose behavior depends on underlying resources (like a dictionary or database)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Singletons cannot be executed on multi-core processors.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Hardcoding the resource prevents flexibility, reusability, and unit testing with mock implementations.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Dependency injection reduces bytecode size by 50%.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It causes memory fragmentation in the Metaspace.",
+          "correct": false
+        }
+      ],
+      "explanation": "Classes that depend on one or more underlying resources whose behavior affects that of the class should not use singletons or static utility classes. Instead, pass the resources (or factories to create them) into the constructor. This is the cornerstone of Dependency Injection (DI) and clean testability.",
+      "codeSnippet": "// Bad: Hardcoded resource singleton\npublic class SpellChecker {\n    private static final Lexicon dictionary = new EnglishDictionary();\n}\n\n// Good: Dependency injection\npublic class SpellChecker {\n    private final Lexicon dictionary;\n    public SpellChecker(Lexicon dictionary) {\n        this.dictionary = Objects.requireNonNull(dictionary);\n    }\n}",
+      "pitfall": "Hardcoding dependencies inside a class tightly couples your code to specific implementations and makes parallel unit testing impossible.",
+      "citation": "Effective Java (Bloch) Item 5: Prefer dependency injection to hardwiring resources"
+    },
+    {
+      "id": "mcq-01-006-06",
+      "concept": "Reusing Expensive Objects (Regex Pattern)",
+      "category": "Performance & Memory",
+      "difficulty": "Intermediate",
+      "question": "Why should `String.matches(regex)` be avoided in performance-critical loops?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`String.matches` only supports ASCII characters.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`String.matches` compiles a new `java.util.regex.Pattern` instance on every invocation, creating heavy garbage and repetitive finite-state machine compilation overhead.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`String.matches` executes synchronously on the OS file thread.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`String.matches` throws a checked `ParseException`.",
+          "correct": false
+        }
+      ],
+      "explanation": "Internally, `String.matches(regex)` executes `Pattern.compile(regex).matcher(this).matches()`. Compiling a regular expression compiles a state machine and is computationally expensive. Reusing an immutable, precompiled `static final Pattern` yields massive speedups.",
+      "codeSnippet": "// BAD (Compiles a new Pattern on every call):\nstatic boolean isRoman(String s) {\n    return s.matches(\"^(?=.)M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$\");\n}\n\n// GOOD (Reuses compiled Pattern):\nprivate static final Pattern ROMAN = Pattern.compile(\n    \"^(?=.)M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})$\");\n\nstatic boolean isRomanFast(String s) {\n    return ROMAN.matcher(s).matches();\n}",
+      "pitfall": "Repeatedly compiling regular expressions in loops or high-frequency web request filters can degrade application throughput by 5x-10x.",
+      "citation": "Effective Java (Bloch) Item 6: Avoid creating unnecessary objects"
+    },
+    {
+      "id": "mcq-01-006-07",
+      "concept": "Memory Leaks via Obsolete Object References",
+      "category": "Performance & Memory",
+      "difficulty": "Intermediate",
+      "question": "In a custom stack implementation backed by an array `Object[] elements`, why must the `pop()` method null out `elements[size]`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "To prevent the JVM from throwing an `ArrayIndexOutOfBoundsException`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "An obsolete reference remaining in the array keeps the object reachable, preventing the garbage collector from reclaiming it (a memory leak / loitering).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Because Java requires array elements to be null before downsizing.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "To notify the CPU cache that the pointer is invalid.",
+          "correct": false
+        }
+      ],
+      "explanation": "Whenever a class manages its own memory (like an array-based stack or cache), elements outside the logical active size remain strongly reachable through the backing array if not cleared. Setting `elements[size] = null` eliminates the obsolete reference so the GC can reclaim the object.",
+      "codeSnippet": "public Object pop() {\n    if (size == 0) throw new EmptyStackException();\n    Object result = elements[--size];\n    elements[size] = null; // Eliminate obsolete reference!\n    return result;\n}",
+      "pitfall": "Over-nulling: do not null out every local variable. Clearing references should only be done when a class manages its own storage or retains references past their logical scope.",
+      "citation": "Effective Java (Bloch) Item 7: Eliminate obsolete object references"
+    },
+    {
+      "id": "mcq-01-006-08",
+      "concept": "Avoid Finalizers and Cleaners",
+      "category": "Resource Management",
+      "difficulty": "Intermediate",
+      "question": "Why should `finalize()` (deprecated) and `Cleaner` be avoided for general resource reclamation in Java?",
+      "options": [
+        {
+          "id": "A",
+          "text": "They run on the main UI thread and block user interaction.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Their execution timing is completely prompt-less and arbitrary; the JVM makes no guarantee they will ever run before the application terminates.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "They can only clean up native C memory allocated via JNI.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "They disable garbage collection on the entire heap.",
+          "correct": false
+        }
+      ],
+      "explanation": "Finalizers and cleaners provide zero guarantees of prompt execution. Relying on them to close files or release database connections will rapidly exhaust OS file descriptors. Always use `AutoCloseable` with try-with-resources. Cleaners are suitable only as a safety net of last resort.",
+      "codeSnippet": "// PROPER RESOURCE CLEANUP:\npublic class Room implements AutoCloseable {\n    @Override\n    public void close() {\n        // Guaranteed immediate prompt cleanup!\n        cleanUpNativeResources();\n    }\n}",
+      "pitfall": "Writing resource cleanups in `finalize()` can allow 'finalizer resurrection' attacks where half-instantiated broken objects resurrect themselves.",
+      "citation": "Effective Java (Bloch) Item 8: Avoid finalizers and cleaners"
+    },
+    {
+      "id": "mcq-01-007-01",
+      "concept": "Maven Standard Directory Layout",
+      "category": "Build Tools",
+      "difficulty": "Beginner",
+      "question": "In the Apache Maven standard directory layout, where should production Java source files be located?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`src/java`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`src/main/java`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`app/sources`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`target/classes`",
+          "correct": false
+        }
+      ],
+      "explanation": "Convention over configuration: Maven strictly expects production Java source files in `src/main/java`, application resources in `src/main/resources`, unit test sources in `src/test/java`, and test resources in `src/test/resources`.",
+      "codeSnippet": "my-project/\n├── pom.xml\n└── src/\n    ├── main/\n    │   ├── java/        <- Production Java source code\n    │   └── resources/   <- Production config (application.yml)\n    └── test/\n        ├── java/        <- Test Java source code\n        └── resources/   <- Test fixtures",
+      "pitfall": "Placing resource files (like XML, JSON, or properties) inside `src/main/java` without explicit `<resources>` filters in `pom.xml` means Maven will ignore them and not copy them to `target/classes`.",
+      "citation": "Introduction to Maven (Jenkins) / Create an Enterprise-Level Test Automation Framework (Das) Ch. 2"
+    },
+    {
+      "id": "mcq-01-007-02",
+      "concept": "Maven Build Lifecycle Execution Order",
+      "category": "Build Tools",
+      "difficulty": "Beginner",
+      "question": "When running the command `mvn package`, which phase executes immediately before `package` in the default build lifecycle?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`clean`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`test`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`deploy`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`validate`",
+          "correct": false
+        }
+      ],
+      "explanation": "The default lifecycle phases execute sequentially: `validate` -> `compile` -> `test` -> `package` -> `verify` -> `install` -> `deploy`. When you invoke `mvn package`, Maven automatically runs all prior phases (including compiling code and executing unit tests).",
+      "codeSnippet": "% mvn package\n[INFO] --- maven-resources-plugin: resources ---\n[INFO] --- maven-compiler-plugin: compile ---\n[INFO] --- maven-surefire-plugin: test ---\n[INFO] --- maven-jar-plugin: jar (package) ---",
+      "pitfall": "Running `mvn package -DskipTests` bypasses test execution, which risks packaging broken code into deployable artifacts.",
+      "citation": "Apache Maven Build Lifecycle Specification"
+    },
+    {
+      "id": "mcq-01-007-03",
+      "concept": "Maven Dependency Scopes",
+      "category": "Build Tools",
+      "difficulty": "Intermediate",
+      "question": "Which dependency `<scope>` should be declared for testing libraries (like JUnit 5 or Mockito) so they are excluded from the packaged production JAR/WAR?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`provided`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`compile`",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "`test`",
+          "correct": true
+        },
+        {
+          "id": "D",
+          "text": "`runtime`",
+          "correct": false
+        }
+      ],
+      "explanation": "`test` scope dependencies are available only for test compilation and test execution. They are not transitive and are never bundled into the production package created by `mvn package`.",
+      "codeSnippet": "<dependency>\n    <groupId>org.junit.jupiter</groupId>\n    <artifactId>junit-jupiter</artifactId>\n    <version>5.10.2</version>\n    <scope>test</scope> <!-- Excluded from production artifact -->\n</dependency>",
+      "pitfall": "Omitting the `<scope>test</scope>` tag defaults the dependency to `compile` scope, needlessly bloating production JAR/WAR files with test frameworks.",
+      "citation": "Maven Dependency Mechanism: Dependency Scopes"
+    },
+    {
+      "id": "mcq-01-007-04",
+      "concept": "Dependency Management vs Dependencies",
+      "category": "Build Tools",
+      "difficulty": "Intermediate",
+      "question": "What is the primary function of the `<dependencyManagement>` section in a parent Maven POM?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It immediately downloads and includes all declared artifacts in every child project.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "It defines and centralizes dependency versions and configurations without actually adding them to the dependency tree until child POMs reference them.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It deletes conflicting JARs from the local `.m2` repository.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It converts Maven projects to Gradle builds.",
+          "correct": false
+        }
+      ],
+      "explanation": "`<dependencyManagement>` is a lookup table for dependency versions. Child modules inherit these versions and only need to specify `<groupId>` and `<artifactId>`, avoiding version fragmentation across multi-module enterprise repositories.",
+      "codeSnippet": "<!-- In Parent POM: -->\n<dependencyManagement>\n    <dependencies>\n        <dependency>\n            <groupId>org.slf4j</groupId>\n            <artifactId>slf4j-api</artifactId>\n            <version>2.0.12</version>\n        </dependency>\n    </dependencies>\n</dependencyManagement>\n\n<!-- In Child POM (no version required): -->\n<dependencies>\n    <dependency>\n        <groupId>org.slf4j</groupId>\n        <artifactId>slf4j-api</artifactId>\n    </dependency>\n</dependencies>",
+      "pitfall": "Adding dependencies directly under `<dependencies>` in a parent POM forces every single child module to inherit that dependency, even if they don't need it.",
+      "citation": "Apache Maven Documentation: Dependency Management"
+    },
+    {
+      "id": "mcq-01-007-05",
+      "concept": "JUnit 5 Architecture & Packages",
+      "category": "Testing",
+      "difficulty": "Beginner",
+      "question": "What is the core API package and annotation used to declare a test method in JUnit 5 (Jupiter)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`org.junit.Test`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`org.junit.jupiter.api.Test`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`junit.framework.TestCase`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`org.testng.annotations.Test`",
+          "correct": false
+        }
+      ],
+      "explanation": "JUnit 5 is modularized into Jupiter (API & Engine), Vintage (JUnit 3/4 runner), and Platform. Test annotations reside in `org.junit.jupiter.api.*`. Methods annotated with `@Test` in JUnit 5 do not need to be `public` (package-private is preferred).",
+      "codeSnippet": "package com.example;\n\nimport org.junit.jupiter.api.Test;\nimport static org.junit.jupiter.api.Assertions.assertEquals;\n\nclass CalculatorTest {\n    @Test\n    void addsTwoNumbers() { // Package-private is idiomatic in JUnit 5!\n        assertEquals(4, 2 + 2);\n    }\n}",
+      "pitfall": "Accidentally importing `org.junit.Test` (JUnit 4) instead of `org.junit.jupiter.api.Test` in a JUnit 5 project will cause tests to be skipped unless the Vintage engine is present.",
+      "citation": "Complete Guide to Java Testing with JUnit 5 & Mockito (van Putten)"
+    },
+    {
+      "id": "mcq-01-007-06",
+      "concept": "JUnit 5 Grouped Assertions (assertAll)",
+      "category": "Testing",
+      "difficulty": "Intermediate",
+      "question": "Why should `assertAll()` be preferred over multiple sequential `assertEquals()` statements when validating multiple properties on an object?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`assertAll()` executes the assertions in separate OS processes for speed.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Sequential assertions fail-fast on the first failure (hiding subsequent failures), whereas `assertAll` executes all assertions and reports all failures together.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`assertAll()` automatically generates test mocks.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`assertAll()` bypasses private member access checks.",
+          "correct": false
+        }
+      ],
+      "explanation": "If you have 4 sequential assertions and the 1st fails, the remaining 3 are never executed, creating a tedious game of whack-a-mole during debugging. `assertAll()` accepts lambdas, executes all assertions regardless of failures, and prints a comprehensive consolidated failure report.",
+      "codeSnippet": "@Test\nvoid validateUser() {\n    User user = new User(\"Alice\", \"Smith\", 30);\n\n    assertAll(\"user verification\",\n        () -> assertEquals(\"Alice\", user.getFirstName()),\n        () -> assertEquals(\"Smith\", user.getLastName()),\n        () -> assertEquals(30, user.getAge())\n    );\n}",
+      "pitfall": "Don't place dependencies between assertions inside `assertAll()`. If assertion 2 depends on assertion 1 not being null, use an explicit initial check.",
+      "citation": "JUnit 5 User Guide §Assertions / Test Automation Framework (Das) Ch. 3"
+    },
+    {
+      "id": "mcq-01-007-07",
+      "concept": "Testing Exceptions with assertThrows",
+      "category": "Testing",
+      "difficulty": "Beginner",
+      "question": "How should an expected exception be verified in JUnit 5?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`@Test(expected = IllegalArgumentException.class)` on the method annotation.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`assertThrows(IllegalArgumentException.class, () -> service.process(-1))`",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Wrapping the code in a manual `try-catch` with a `fail()` call.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`@ExpectedException(IllegalArgumentException.class)`",
+          "correct": false
+        }
+      ],
+      "explanation": "JUnit 5 deprecated the JUnit 4 `@Test(expected = ...)` attribute in favor of `assertThrows()`. It takes the expected exception class and an executable lambda, and returns the caught exception instance so you can further assert on its message or error codes.",
+      "codeSnippet": "@Test\nvoid throwsOnNegativeDeposit() {\n    Account account = new Account();\n\n    IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> {\n        account.deposit(BigDecimal.valueOf(-50));\n    });\n\n    assertEquals(\"Deposit cannot be negative\", ex.getMessage());\n}",
+      "pitfall": "`assertThrows` asserts on exact type or subclasses. If the method throws a different exception or no exception at all, the assertion fails.",
+      "citation": "JUnit 5 User Guide: Exception Testing"
+    },
+    {
+      "id": "mcq-01-007-08",
+      "concept": "JUnit 5 Test Lifecycle Hooks",
+      "category": "Testing",
+      "difficulty": "Intermediate",
+      "question": "What lifecycle hook in JUnit 5 executes once before all test methods in a class, and what requirement does it have by default?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`@Before`, and it must be package-private.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`@BeforeAll`, and it must be annotated on a `static` method by default.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`@SetupClass`, and it must return a boolean.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`@PreTest`, and it must take an `ApplicationContext` argument.",
+          "correct": false
+        }
+      ],
+      "explanation": "`@BeforeAll` runs once before any `@Test` methods execute in the test class. Under the default lifecycle (`Lifecycle.PER_METHOD`), the test class instance is recreated for each test method; hence `@BeforeAll` methods must be `static` unless `@TestInstance(Lifecycle.PER_CLASS)` is configured.",
+      "codeSnippet": "class DatabaseTest {\n    @BeforeAll\n    static void startContainer() {\n        // Runs once for the entire class\n        dbContainer.start();\n    }\n\n    @BeforeEach\n    void cleanTables() {\n        // Runs before EACH test method\n        db.clear();\n    }\n}",
+      "pitfall": "Declaring a non-static `@BeforeAll` method without `@TestInstance(Lifecycle.PER_CLASS)` will throw a JUnitConfigurationException at runtime.",
+      "citation": "JUnit 5 User Guide: Test Lifecycle"
+    },
+    {
+      "id": "mcq-01-008-01",
+      "concept": "The transient Keyword in Serialization",
+      "category": "Serialization",
+      "difficulty": "Beginner",
+      "question": "What effect does the `transient` keyword have on an instance field of a class implementing `java.io.Serializable`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The field is made thread-safe with volatile read/write semantics.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The field is omitted from default binary serialization and restored to its default value (null/0/false) upon deserialization.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The field can only be accessed by transient threads.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The field is automatically encrypted before transmission.",
+          "correct": false
+        }
+      ],
+      "explanation": "Fields marked `transient` are excluded from the default serialization mechanism. They are useful for sensitive credentials (passwords), cached computed values, or non-serializable objects (like open socket/file handles). When deserialized, transient fields receive default JVM values.",
+      "codeSnippet": "public class UserSession implements Serializable {\n    private String username;\n    private transient String passwordHash; // Excluded from serialization!\n    private transient Socket connection;   // Excluded!\n}",
+      "pitfall": "Upon deserialization, transient fields do not run initializers. If an object requires non-null defaults for transient fields, initialize them inside `readObject()`.",
+      "citation": "Java Object Serialization Specification §1.5 / Effective Java Item 87"
+    },
+    {
+      "id": "mcq-01-008-02",
+      "concept": "serialVersionUID Compatibility",
+      "category": "Serialization",
+      "difficulty": "Intermediate",
+      "question": "Why should every `Serializable` class explicitly declare `private static final long serialVersionUID`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Without it, the compiler refuses to generate bytecode.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "If omitted, the JVM generates one automatically based on class structure; any innocuous modification to the class changes this hash, breaking compatibility with previously serialized instances.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It specifies the licensing key for the software product.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It prevents classloading attacks from native JNI code.",
+          "correct": false
+        }
+      ],
+      "explanation": "If you do not explicitly declare `serialVersionUID`, the runtime computes a default value based on class details (compiler, interfaces, methods, fields). Different compilers or minor changes (e.g. adding a method) alter the generated ID, resulting in `InvalidClassException` upon deserialization.",
+      "codeSnippet": "public class UserProfile implements Serializable {\n    // Explicit serialVersionUID prevents accidental incompatibility:\n    private static final long serialVersionUID = 1L;\n\n    private String email;\n}",
+      "pitfall": "Failing to update `serialVersionUID` when making incompatible structural changes (like changing a field's primitive type) can cause silent field corruption.",
+      "citation": "Effective Java (Bloch) Item 87: Consider using a custom serialized form"
+    },
+    {
+      "id": "mcq-01-008-03",
+      "concept": "Preserving Singletons with readResolve",
+      "category": "Serialization & Patterns",
+      "difficulty": "Advanced",
+      "question": "What method must a traditional class-based Singleton implement to prevent deserialization from creating a new duplicate instance?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`public void validateSingleton()`",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`private Object readResolve()` returning the existing singleton instance.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`public static Object getInstance()`",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`protected void finalize()`",
+          "correct": false
+        }
+      ],
+      "explanation": "When an object is deserialized, `ObjectInputStream` creates a brand-new instance regardless of whether the constructor is private. If the class defines a `readResolve()` method, the deserialized object is replaced with the instance returned by `readResolve()` before returning to the caller.",
+      "codeSnippet": "public class Elvis implements Serializable {\n    public static final Elvis INSTANCE = new Elvis();\n    private Elvis() {}\n\n    // Guarantees singleton identity across serialization:\n    private Object readResolve() {\n        return INSTANCE;\n    }\n}",
+      "pitfall": "If any instance fields in the class-based singleton are non-transient, an attacker can use a deserialization gadget to steal references before `readResolve` executes. Prefer an enum singleton instead.",
+      "citation": "Effective Java (Bloch) Item 89: For instance control, prefer enum types to readResolve"
+    },
+    {
+      "id": "mcq-01-008-04",
+      "concept": "Java Enum Constant-Specific Methods",
+      "category": "Syntax & Enums",
+      "difficulty": "Intermediate",
+      "question": "How can different behaviors be attached to individual constants of an `enum` without using a sprawling `switch` statement?",
+      "options": [
+        {
+          "id": "A",
+          "text": "By declaring an abstract method in the enum and overriding it in constant-specific class bodies.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "By subclassing the enum in separate source files.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "By declaring dynamic javascript functions in the enum constructor.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Enums cannot have custom methods in Java.",
+          "correct": false
+        }
+      ],
+      "explanation": "Java enums are full-featured classes. By declaring an abstract method in the enum declaration, each constant can provide its own implementation in an anonymous constant-specific class body. The compiler forces every newly added constant to implement the method.",
+      "codeSnippet": "public enum Operation {\n    PLUS {\n        public double apply(double x, double y) { return x + y; }\n    },\n    MINUS {\n        public double apply(double x, double y) { return x - y; }\n    };\n\n    public abstract double apply(double x, double y);\n}",
+      "pitfall": "Using a `switch` statement on `this` inside an enum method requires you to remember to update the switch every time a new constant is added; constant-specific methods enforce this at compile-time.",
+      "citation": "Effective Java (Bloch) Item 34: Use enums instead of int constants"
+    },
+    {
+      "id": "mcq-01-008-05",
+      "concept": "EnumSet Performance over Bit Fields",
+      "category": "Collections & Enums",
+      "difficulty": "Intermediate",
+      "question": "Why should `java.util.EnumSet` be used instead of traditional bitwise int flags (`public static final int STYLE_BOLD = 1 << 0`)?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`EnumSet` compiles directly into native hardware microcode.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`EnumSet` provides full type safety, readability, and rich Set operations while matching the raw performance of a bit field via an underlying `long` bit-vector.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Bit fields are deprecated and disallowed in modern Java.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "`EnumSet` eliminates all heap memory allocation.",
+          "correct": false
+        }
+      ],
+      "explanation": "Historically, programmers used bit fields (`1 << 0`, `1 << 1`) for sets of options. `EnumSet` internally represents the set as a single `long` bit-vector (for enums with <= 64 elements), giving the exact same bitwise performance with full type safety and expressive Set APIs.",
+      "codeSnippet": "public enum Style { BOLD, ITALIC, UNDERLINE, STRIKETHROUGH }\n\n// Clean, type-safe, bit-vector performance:\nSet<Style> styles = EnumSet.of(Style.BOLD, Style.ITALIC);\ntextWidget.applyStyles(styles);",
+      "pitfall": "Never use integer bit flags in modern Java. They provide zero type safety, cannot be iterated easily, and printing them yields raw numbers with no semantic names.",
+      "citation": "Effective Java (Bloch) Item 36: Use EnumSet instead of bit fields"
+    },
+    {
+      "id": "mcq-01-008-06",
+      "concept": "Security Hazards of Java Deserialization",
+      "category": "Security",
+      "difficulty": "Advanced",
+      "question": "Why is native Java deserialization (`ObjectInputStream.readObject()`) widely considered one of the most critical security vulnerabilities in Java applications?",
+      "options": [
+        {
+          "id": "A",
+          "text": "It exposes passwords in the operating system pagefile.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Untrusted serialized byte streams can instantiate arbitrary classes and trigger 'gadget chains' of method invocations during object reconstruction, leading to Remote Code Execution (RCE).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "It causes the garbage collector to enter an infinite loop.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "It only supports HTTP/1.0 connections.",
+          "correct": false
+        }
+      ],
+      "explanation": "Deserialization instantiates objects without calling constructors, invoking `readObject()` on arbitrary classes found in the classpath. Attackers construct 'gadget chains' (sequences of classes whose standard cleanup/read behaviors chain together to invoke `Runtime.getRuntime().exec()`), resulting in Remote Code Execution.",
+      "codeSnippet": "// Modern Recommendation: Prefer cross-platform structured formats (JSON / Protobuf)\n// If Java serialization is unavoidable, enforce a Serialization Filter (JEP 290):\nObjectInputFilter filter = ObjectInputFilter.Config.createFilter(\n    \"com.example.dto.*;java.base/*;!*\");\nobjectInputStream.setObjectInputFilter(filter);",
+      "pitfall": "Never deserialize untrusted data from network sockets or user cookies. Prefer JSON, Protocol Buffers, or strict JEP 290 object input filtering.",
+      "citation": "Effective Java (Bloch) Item 85: Prefer alternatives to Java serialization / Software Security for Developers (Saikali & Spilca) Ch. 7"
+    }
+  ]
+}

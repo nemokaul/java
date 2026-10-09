@@ -1,0 +1,274 @@
+{
+  "deckId": "ch-01-004",
+  "title": "§01-004: Equality, Hashing & Immutability",
+  "chapterId": "01-004",
+  "sectionId": "section-01",
+  "description": "The equals/hashCode contract, defensive copies, mutable keys in hash tables, and BigDecimal comparison.",
+  "totalCards": 8,
+  "cards": [
+    {
+      "id": "mcq-01-004-01",
+      "concept": "The equals and hashCode Contract",
+      "category": "Core Contracts",
+      "difficulty": "Beginner",
+      "question": "What is the mandatory rule dictated by the Java contract between `equals()` and `hashCode()`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "If two objects have the same hash code, they MUST be equal according to `equals()`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "If two objects are equal according to `equals()`, their `hashCode()` methods MUST return the exact same integer value.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Every object must return a unique positive prime number from `hashCode()`.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The `hashCode()` method cannot be overridden without making the class final.",
+          "correct": false
+        }
+      ],
+      "explanation": "The contract states: If `o1.equals(o2)` is true, then `o1.hashCode() == o2.hashCode()` MUST be true. The reverse is not required: unequal objects may share the same hash code (a hash collision). Failing this contract breaks hash-based collections (`HashMap`, `HashSet`).",
+      "codeSnippet": "public final class PhoneNumber {\n    private final short areaCode, prefix, lineNum;\n\n    @Override\n    public boolean equals(Object o) {\n        if (o == this) return true;\n        if (!(o instanceof PhoneNumber pn)) return false;\n        return pn.areaCode == areaCode && pn.prefix == prefix && pn.lineNum == lineNum;\n    }\n\n    @Override\n    public int hashCode() {\n        return Objects.hash(areaCode, prefix, lineNum);\n    }\n}",
+      "pitfall": "Overriding `equals()` without overriding `hashCode()` is a fatal error. Equal objects placed in a `HashMap` will hash into different buckets and will never be found on lookup.",
+      "citation": "Effective Java (Bloch) Item 11: Always override hashCode when you override equals"
+    },
+    {
+      "id": "mcq-01-004-02",
+      "concept": "Mutable Keys in Hash Collections",
+      "category": "Collections & Hashing",
+      "difficulty": "Intermediate",
+      "question": "What happens if an object is added as a key in a `HashMap`, and subsequent code mutates a field that affects the object's `hashCode()`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The `HashMap` automatically detects the change and re-hashes the entry to the new bucket.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "The `HashMap` throws a `ConcurrentModificationException` immediately.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "The key becomes 'lost' in the old bucket; `map.get(key)` returns `null` because the new hash code points to a different bucket.",
+          "correct": true
+        },
+        {
+          "id": "D",
+          "text": "The JVM rolls back the field mutation to preserve map consistency.",
+          "correct": false
+        }
+      ],
+      "explanation": "`HashMap` determines which bucket stores an entry using the key's hash code at insertion time. If you mutate fields that change `hashCode()`, subsequent lookups will search a different bucket (based on the new hash) and fail to find the entry, causing memory leaks and missing data.",
+      "codeSnippet": "Map<MutableKey, String> map = new HashMap<>();\nMutableKey key = new MutableKey(\"Initial\");\nmap.put(key, \"TargetData\");\n\nkey.setName(\"Modified\"); // Mutates hashCode!\n\n// Returns null even though key is the exact same reference!\nSystem.out.println(map.get(key));",
+      "pitfall": "Always use immutable objects (like `String`, `Integer`, `UUID`, or Java `records`) as keys in `HashMap` and elements in `HashSet`.",
+      "citation": "Java Generics and Collections (Naftalin & Wadler) Ch. 13 / Effective Java Item 17"
+    },
+    {
+      "id": "mcq-01-004-03",
+      "concept": "Defensive Copying in Constructors",
+      "category": "Immutability & Security",
+      "difficulty": "Intermediate",
+      "question": "Why should defensive copies of mutable constructor arguments be made BEFORE verifying their validity parameters?",
+      "options": [
+        {
+          "id": "A",
+          "text": "To prevent Time-of-Check to Time-of-Use (TOCTOU) race condition attacks from another thread mutating the object between check and copy.",
+          "correct": true
+        },
+        {
+          "id": "B",
+          "text": "Because Java requires all copies to be stored in the Metaspace.",
+          "correct": false
+        },
+        {
+          "id": "C",
+          "text": "To ensure the garbage collector can reclaim the parameter immediately.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "To automatically convert checked exceptions to unchecked runtime exceptions.",
+          "correct": false
+        }
+      ],
+      "explanation": "If you check validity on the incoming parameter reference before copying it, another malicious or concurrent thread can alter the parameter after your check but before you store it (TOCTOU attack). Making the copy first and validating the copy eliminates this window.",
+      "codeSnippet": "public final class Period {\n    private final Date start, end;\n\n    public Period(Date start, Date end) {\n        // 1. Defensively copy FIRST:\n        this.start = new Date(start.getTime());\n        this.end = new Date(end.getTime());\n\n        // 2. Validate the COPIES, not the parameters:\n        if (this.start.compareTo(this.end) > 0) {\n            throw new IllegalArgumentException(this.start + \" after \" + this.end);\n        }\n    }\n}",
+      "pitfall": "Do not use the parameter's `clone()` method for defensive copying of parameters whose type can be subclassed by untrusted parties. Use constructors or static factories.",
+      "citation": "Effective Java (Bloch) Item 50: Make defensive copies when needed"
+    },
+    {
+      "id": "mcq-01-004-04",
+      "concept": "BigDecimal equals vs compareTo",
+      "category": "Core Contracts",
+      "difficulty": "Intermediate",
+      "question": "Given `BigDecimal a = new BigDecimal(\"2.0\");` and `BigDecimal b = new BigDecimal(\"2.00\");`, what are the results of `a.equals(b)` and `a.compareTo(b) == 0`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "`a.equals(b)` is `true`, and `a.compareTo(b) == 0` is `true`.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "`a.equals(b)` is `false` (different scale), but `a.compareTo(b) == 0` is `true` (same numerical value).",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "`a.equals(b)` is `true`, but `a.compareTo(b) == 0` is `false`.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Both evaluate to `false` because they have distinct heap addresses.",
+          "correct": false
+        }
+      ],
+      "explanation": "`BigDecimal.equals()` checks both the numerical value AND the scale (number of digits to the right of decimal point). `2.0` has scale 1, while `2.00` has scale 2, so `equals()` returns `false`. However, `compareTo()` compares only numerical magnitude, so `compareTo()` returns `0`.",
+      "codeSnippet": "BigDecimal a = new BigDecimal(\"2.0\");\nBigDecimal b = new BigDecimal(\"2.00\");\n\nSet<BigDecimal> hashSet = new HashSet<>();\nhashSet.add(a); hashSet.add(b);\nSystem.out.println(hashSet.size()); // 2! (uses equals)\n\nSet<BigDecimal> treeSet = new TreeSet<>();\ntreeSet.add(a); treeSet.add(b);\nSystem.out.println(treeSet.size()); // 1! (uses compareTo)",
+      "pitfall": "This asymmetry makes `BigDecimal`'s `Comparable` interface inconsistent with `equals`. Using `BigDecimal` in `HashSet` versus `TreeSet` yields completely different set sizes.",
+      "citation": "Effective Java (Bloch) Item 12 / Java API java.math.BigDecimal"
+    },
+    {
+      "id": "mcq-01-004-05",
+      "concept": "Integer Wrapper Cache Range",
+      "category": "Syntax & Primitives",
+      "difficulty": "Beginner",
+      "question": "Why does `Integer a = 100; Integer b = 100; a == b` evaluate to `true`, but `Integer c = 1000; Integer d = 1000; c == d` evaluates to `false`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Numbers above 127 overflow the stack and must be moved to off-heap memory.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Java caches boxed `Integer` instances for values between -128 and 127 by default, so autoboxing returns the same cached reference for 100, but creates distinct heap objects for 1000.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The equality operator `==` switches to floating-point arithmetic for values above 255.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "Numbers above 127 require a 64-bit Long conversion.",
+          "correct": false
+        }
+      ],
+      "explanation": "Java autoboxing utilizes `Integer.valueOf(int)`. The JLS mandates that values in the range `-128` to `127` (inclusive) are cached in `IntegerCache`. Comparing boxed wrappers with `==` checks reference identity, which succeeds for cached instances but fails for newly allocated heap instances outside the cache.",
+      "codeSnippet": "Integer a = 100, b = 100;\nSystem.out.println(a == b); // true (same cached instance)\n\nInteger c = 1000, d = 1000;\nSystem.out.println(c == d); // false (different heap objects!)\nSystem.out.println(c.equals(d)); // true (ALWAYS use .equals for wrappers!)",
+      "pitfall": "Never compare wrapper types (`Integer`, `Long`, `Character`) with `==`. Always use `.equals()` or primitive unboxing.",
+      "citation": "Java Language Specification SE 21 §5.1.7: Boxing Conversion"
+    },
+    {
+      "id": "mcq-01-004-06",
+      "concept": "Records Shallow Immutability",
+      "category": "Modern Java",
+      "difficulty": "Intermediate",
+      "question": "If a Java record is defined as `public record Team(String name, List<String> members) {}`, is the `Team` instance deeply immutable?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Yes, the Java compiler automatically creates an unmodifiable copy of all collection components.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "No, records provide shallow immutability (the fields are final references), but the contents of the referenced `List` can still be mutated by external callers.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "Yes, records prohibit passing mutable collections during instantiation.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "No, record fields can be reassigned using generated setter methods.",
+          "correct": false
+        }
+      ],
+      "explanation": "Records guarantee that component fields are `private final` references. However, if a component points to a mutable object (like `ArrayList`), external callers can mutate that list's contents. To ensure true immutability, wrap mutable collections in `List.copyOf()` inside a compact constructor.",
+      "codeSnippet": "public record Team(String name, List<String> members) {\n    // Defensively copy to enforce deep immutability:\n    public Team {\n        members = List.copyOf(members); // Unmodifiable defensive copy!\n    }\n}",
+      "pitfall": "Assuming records make everything inside them immutable. If a record contains a mutable collection or date, callers can mutate its internal state unless you make defensive copies.",
+      "citation": "Java SE 21 Specification: Records (JEP 395)"
+    },
+    {
+      "id": "mcq-01-004-07",
+      "concept": "String Interning and Literal Pooling",
+      "category": "JVM Memory",
+      "difficulty": "Beginner",
+      "question": "Where are string literals like `String s = \"hello\";` stored in the JVM, and how does the string pool behave?",
+      "options": [
+        {
+          "id": "A",
+          "text": "In the thread execution stack, destroyed upon method exit.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "In the String Constant Pool inside the Java heap, where identical literal strings share a single cached object.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "In the Metaspace alongside native C++ pointers.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "In the Eden generation, collected on every Minor GC.",
+          "correct": false
+        }
+      ],
+      "explanation": "The String Constant Pool resides inside the main Java heap. When string literals are evaluated, the JVM checks the pool. If an identical sequence already exists, the existing instance reference is returned, deduplicating memory.",
+      "codeSnippet": "String s1 = \"mastery\";\nString s2 = \"mastery\";\nString s3 = new String(\"mastery\");\n\nSystem.out.println(s1 == s2); // true (same pooled reference)\nSystem.out.println(s1 == s3); // false (s3 is an explicit new heap object!)\nSystem.out.println(s1.equals(s3)); // true (content equality)",
+      "pitfall": "Calling `new String(\"literal\")` explicitly creates an unnecessary redundant heap object. Never use `new String()` unless specifically forced by isolated locking requirements.",
+      "citation": "Effective Java (Bloch) Item 6: Avoid creating unnecessary objects"
+    },
+    {
+      "id": "mcq-01-004-08",
+      "concept": "Consistent Comparator Contract",
+      "category": "Core Contracts",
+      "difficulty": "Intermediate",
+      "question": "What potential issue occurs when sorting elements using a Comparator implemented as `(a, b) -> a.getValue() - b.getValue()`?",
+      "options": [
+        {
+          "id": "A",
+          "text": "The comparator will fail to compile because lambda expressions cannot return integer primitives.",
+          "correct": false
+        },
+        {
+          "id": "B",
+          "text": "Integer subtraction can overflow or underflow (e.g. `Integer.MIN_VALUE - 1`), causing the comparator to return inverted comparison signs and violating transitivity.",
+          "correct": true
+        },
+        {
+          "id": "C",
+          "text": "The comparator executes in O(N^2) time regardless of sorting algorithm.",
+          "correct": false
+        },
+        {
+          "id": "D",
+          "text": "The JVM throws a `ClassCastException`.",
+          "correct": false
+        }
+      ],
+      "explanation": "Using subtraction (`a - b`) for comparisons is notoriously bug-prone due to integer overflow. If `a` is a large positive number and `b` is a large negative number, `a - b` overflows to a negative value, reporting that `a < b` when `a > b`. Always use `Integer.compare(a, b)` or `Comparator.comparingInt()`.",
+      "codeSnippet": "// DANGEROUS:\nComparator<Item> badComp = (x, y) -> x.score - y.score; // Can overflow!\n\n// SAFE AND RECOMMENDED:\nComparator<Item> goodComp = Comparator.comparingInt(Item::getScore);\n// Or:\nComparator<Item> safeComp = (x, y) -> Integer.compare(x.score, y.score);",
+      "pitfall": "Never use subtraction-based comparison logic for integers, longs, or floating-point numbers in `Comparator` or `Comparable` implementations.",
+      "citation": "Effective Java (Bloch) Item 14: Consider implementing Comparable"
+    }
+  ]
+}

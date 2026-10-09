@@ -94,7 +94,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html#standard-options-for-java",
                   "description": "Standard VM options, system properties (`-D`), and class execution."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "The JDK CLI utilities (javac, java, jar, jshell, jpackage) provide the core compilation and execution toolchain independent of any IDE. javac compiles .java source code into platform-independent .class bytecode files, while java launches the Java Virtual Machine runtime.",
+                "mental_model": "Developer Source (.java) -> javac (compiler) -> Bytecode (.class) -> java (JVM process / JIT compiler) -> Host OS execution.",
+                "code_example": "javac -d out/ -cp \"lib/*\" src/App.java\njava -cp \"out:lib/*\" com.example.App --release 21",
+                "pitfalls": "Neglecting the -d flag causes javac to output .class files next to .java source files in the source tree, breaking package directory matching."
+              }
             },
             {
               "id": "UzAxOkMwMDE6VjAyOkxKMUhUQkFFSlA",
@@ -116,7 +122,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html#classpath",
                   "description": "How the compiler and launcher search for user classes and library archives."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Java 11+ single-file source-code execution mode allows running a .java file directly with 'java App.java' without explicit prior javac compilation, compiling in-memory for fast prototyping and scripting.",
+                "mental_model": "java App.java skips saving .class to disk; the JVM compiles the source in RAM and invokes the main method in a single step.",
+                "code_example": "// Run directly from terminal without explicit javac:\njava src/com/example/QuickScript.java arg1 arg2",
+                "pitfalls": "Single-file mode only compiles the single target .java file; referencing other separate uncompiled .java files in the same directory will cause compilation errors unless pre-compiled."
+              }
             },
             {
               "id": "UzAxOkMwMDE6VjAzOkpNTUlUVEdD",
@@ -138,7 +150,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-2.html#jvms-2.5",
                   "description": "The pc register, Java virtual machine stacks, heap, and method area."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "The HotSpot Garbage Collector is an automatic memory management subsystem responsible for identifying and reclaiming heap memory occupied by unreachable objects, eliminating manual free() operations.",
+                "mental_model": "Objects are allocated in Heap memory. Thread execution frames live in Stack memory. When all GC roots (stack variables, static fields, JNI handles) lose their references to a heap object, it becomes eligible for collection.",
+                "code_example": "// Explicit System.gc() is only a hint and should NOT be used in production:\nSystem.gc(); // Antipattern - triggers full STW (Stop-The-World) pause",
+                "pitfalls": "Assuming System.gc() forces immediate cleanup. It only triggers a hint to the JVM, frequently causing catastrophic Stop-The-World (STW) latency spikes."
+              }
             },
             {
               "id": "UzAxOkMwMDE6VjA0OkpNTURHT1RI",
@@ -160,7 +178,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/gctuning/factors-affecting-garbage-collection-performance1.html",
                   "description": "Survivor space ratios (`-XX:SurvivorRatio`) and tenuring thresholds."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "HotSpot's Generational Garbage Collection partitions the heap based on the Weak Generational Hypothesis: most objects die shortly after allocation. The heap is split into Young Generation (Eden + Survivor spaces S0/S1) and Old (Tenured) Generation.",
+                "mental_model": "Allocation -> Eden -> (Minor GC survivors copy to S0 or S1, aging by 1 tenure threshold) -> Old Generation (when age exceeds -XX:MaxTenuringThreshold or survivor overflows).",
+                "code_example": "# JVM generational tuning flags:\njava -XX:NewRatio=2 -XX:SurvivorRatio=8 -XX:MaxTenuringThreshold=15 -jar app.jar",
+                "pitfalls": "Premature tenuring: If survivor spaces are too small, short-lived objects spill directly into Old Gen, triggering frequent, expensive Major/Full GCs."
+              }
             },
             {
               "id": "UzAxOkMwMDE6VjA1OkpNTUhTQUhE",
@@ -182,7 +206,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/jcmd.html#options",
                   "description": "Generating live heap diagnostics and thread dumps via CLI."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "JVM heap sizing parameters control initial and maximum memory thresholds (-Xms and -Xmx). Diagnostic heap dumps (HPROF) capture complete object snapshots for analyzing memory leaks and OutOfMemoryError.",
+                "mental_model": "Setting -Xms == -Xmx avoids JVM runtime heap expansion/contraction overhead. Heap dump captures an instant memory freeze frame.",
+                "code_example": "java -Xms4g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/dumps/oom.hprof -jar app.jar\n# Capture live dump via CLI:\njcmd <pid> GC.heap_dump /tmp/live_heap.hprof",
+                "pitfalls": "In containerized environments (Docker/K8s), failing to use -XX:MaxRAMPercentage or hardcoding -Xmx higher than container cgroup limits causes silent OOMKills by the OS kernel."
+              }
             },
             {
               "id": "UzAxOkMwMDE6VjA2OkpNTU1T",
@@ -199,7 +229,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/gctuning/other-considerations.html#GUID-A7B4815F-98A8-4B07-B597-28EB5AB1C2A3",
                   "description": "Class metadata allocation in native memory and `-XX:MetaspaceSize`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Introduced in Java 8 to replace PermGen, Metaspace resides in off-heap native memory and holds class metadata, constant pools, method bytecode, and annotations.",
+                "mental_model": "Unlike PermGen, Metaspace grows dynamically up to available OS memory unless bounded. When full or resizing, it triggers high-cost Metaspace GCs.",
+                "code_example": "java -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=512m -jar app.jar",
+                "pitfalls": "Unbounded Metaspace (-XX:MaxMetaspaceSize not set) coupled with continuous dynamic class loading (e.g. CGLIB proxies, hot reloading) can silently exhaust host RAM and crash the OS process."
+              }
             }
           ],
           "totalDurationSeconds": 2396
@@ -233,7 +269,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.1",
                   "description": "Formal grammar and semantic rules for class definitions."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "A class in Java is a user-defined blueprint defining state (fields) and behavior (methods) from which individual object instances are created on the heap.",
+                "mental_model": "Class bytecode lives in Metaspace; every 'new Blueprint()' allocates an object header + instance variable slots on the JVM heap.",
+                "code_example": "public class User {\n    private final String id;\n    public User(String id) { this.id = id; }\n    public String getId() { return id; }\n}",
+                "pitfalls": "Confusing primitive values (stored directly on stack or inside object fields) with reference variables (which hold 32/64-bit addresses pointing to heap objects)."
+              }
             },
             {
               "id": "UzAxOkMwMDI6VjAyOkpPQk9XQUM",
@@ -250,7 +292,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.8",
                   "description": "Instance initialization, `this()`, and `super()` delegation."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Constructors are specialized subroutines called during object instantiation to initialize state and guarantee class invariants before the reference is published.",
+                "mental_model": "Memory allocation on Heap -> Default zero-initialization of fields -> Explicit field initializers -> Constructor body execution (super() then this()).",
+                "code_example": "public class Account {\n    private final double balance;\n    public Account(double balance) {\n        if (balance < 0) throw new IllegalArgumentException(\"Negative balance\");\n        this.balance = balance;\n    }\n}",
+                "pitfalls": "Calling overridable methods inside a constructor: a subclass overriding the method will execute before its own subclass fields have been initialized, seeing uninitialized zeroes/nulls."
+              }
             },
             {
               "id": "UzAxOkMwMDI6VjAzOkpPVVREQkNBSU0",
@@ -267,7 +315,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.3.1.1",
                   "description": "`static` field semantics and class initialization timing."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "static members belong to the java.lang.Class object in Metaspace and are shared across all instances, whereas instance members belong uniquely to individual objects on the heap.",
+                "mental_model": "Static field = 1 copy per ClassLoader in Metaspace. Instance field = N copies, 1 per new allocation on Heap.",
+                "code_example": "public class Counter {\n    public static int globalCount = 0; // Shared across all instances\n    public int instanceCount = 0;      // Unique per instance\n}",
+                "pitfalls": "Accessing static members through an instance variable (e.g., counterInstance.globalCount) creates misleading code that obscures the static, non-polymorphic nature of the member."
+              }
             },
             {
               "id": "UzAxOkMwMDI6VjA0OkpTMkRBQ00",
@@ -284,7 +338,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.6",
                   "description": "Access matrix across packages, subclasses, and nested types."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Java access levels (public, protected, package-private, private) enforce encapsulation boundaries across classes, packages, and inheritance hierarchies.",
+                "mental_model": "Visibility matrix: private (same class only) < package-private (default, same package) < protected (same package + subclasses) < public (world).",
+                "code_example": "public class OrderService {          // Visible anywhere\n    protected void calculateTax() {}  // Package + subclasses\n    void applyDiscount() {}           // Package-private\n    private void audit() {}           // Same class only\n}",
+                "pitfalls": "Confusing protected with package-private: protected grants access to subclasses even if they reside in completely different packages."
+              }
             },
             {
               "id": "UzAxOkMwMDI6VjA1OkpTMkRFUg",
@@ -301,7 +361,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/tutorial/java/javaOO/accesscontrol.html",
                   "description": "Encapsulation design patterns and access level table."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Encapsulation bundles data with methods operating on that data and restricts direct outside access to internal representations, enforcing class invariants.",
+                "mental_model": "Data hiding: external callers can only interact via public method contracts, preventing illegal external state transitions.",
+                "code_example": "public class BankAccount {\n    private long cents; // Invariant: cents >= 0\n    public void withdraw(long amount) {\n        if (amount > cents) throw new IllegalStateException(\"Insufficient funds\");\n        cents -= amount;\n    }\n}",
+                "pitfalls": "Returning mutable object references (such as Date or java.util.List) from getters without defensive copying, allowing callers to corrupt internal state externally."
+              }
             },
             {
               "id": "UzAxOkMwMDI6VjA2OkpTMkREUg",
@@ -323,7 +389,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Record.html",
                   "description": "Base class for all record types and component reflection."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Introduced in Java 16, a record is a transparent, immutable carrier for data that automatically generates canonical constructor, accessors, equals(), hashCode(), and toString().",
+                "mental_model": "A record is implicitly final, extends java.lang.Record, and its components become private final fields with corresponding accessor methods (e.g. name() instead of getName()).",
+                "code_example": "public record Point(int x, int y) {}\n// Usage:\nPoint p = new Point(10, 20);\nSystem.out.println(p.x()); // 10\nSystem.out.println(p);     // Point[x=10, y=20]",
+                "pitfalls": "Attempting to declare instance fields in a record: records only permit static fields; all instance state MUST be declared in the record component list."
+              }
             },
             {
               "id": "UzAxOkMwMDI6VjA3OkpTMkRGT1I",
@@ -340,7 +412,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.30.1",
                   "description": "Pattern matching for records and deconstruction patterns."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Records support compact constructors (omitting parameter lists for validation and normalization), local records, and record pattern matching in Java 21+ switch statements.",
+                "mental_model": "In compact constructors, parameters exist implicitly and are reassigned before the compiler writes this.x = x.",
+                "code_example": "public record User(String username, int age) {\n    public User { // Compact constructor: no parameter list\n        username = username.trim().toLowerCase();\n        if (age < 0) throw new IllegalArgumentException(\"Negative age\");\n    }\n}",
+                "pitfalls": "Assigning to this.field inside a compact constructor: you must assign to the implicit parameter (e.g. username = ...), not this.username."
+              }
             },
             {
               "id": "UzAxOkMwMDI6VjA4OkpTMkRPQU9NUDE",
@@ -357,7 +435,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.4.9",
                   "description": "Compile-time most specific method lookup algorithm."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Method Overloading is static polymorphism resolved at compile time based on method signatures and argument types. Method Overriding is dynamic polymorphism resolved at runtime based on the actual object type on the heap.",
+                "mental_model": "Overloading: resolved by compiler at compile-time (early binding). Overriding: resolved by JVM vtable lookup at runtime (late binding).",
+                "code_example": "class Parent {\n    void print(Object o) { System.out.println(\"Object\"); }\n}\nclass Child extends Parent {\n    void print(String s) { System.out.println(\"String\"); } // Overload, NOT override!\n}",
+                "pitfalls": "Accidentally overloading instead of overriding (e.g. writing boolean equals(MyClass other) instead of boolean equals(Object other)). Always annotate with @Override."
+              }
             },
             {
               "id": "UzAxOkMwMDI6VjA5OkpTMkRPQU9NUDI",
@@ -374,7 +458,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.4.8",
                   "description": "Dynamic dispatch, covariant return types, and `@Override` validation."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Overriding rules require identical parameter types, covariant return types (subclass of original return type), and equal or narrower checked exception declarations.",
+                "mental_model": "Liskov Substitution Principle (LSP): Subclass methods cannot be more restrictive in visibility or throw broader checked exceptions than their superclass counterparts.",
+                "code_example": "class Service {\n    protected Number getVal() throws IOException { return 1; }\n}\nclass ApiService extends Service {\n    @Override\n    public Integer getVal() throws FileNotFoundException { return 1; } // Covariant return + narrower exception\n}",
+                "pitfalls": "Attempting to throw a broader checked exception or reducing access visibility (e.g. changing public to protected) in an overridden method causes a compile error."
+              }
             }
           ],
           "totalDurationSeconds": 4508
@@ -412,7 +502,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Throwable.html",
                   "description": "Root of the exception hierarchy, stack trace capture, and cause chaining."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Structured exception handling uses try blocks to isolate failure-prone operations, catch blocks to handle specific Throwable types, and finally blocks to guarantee execution regardless of how control exits.",
+                "mental_model": "If an exception is thrown, the call stack unwinds until a matching catch frame is found. The finally block executes before the method frame pops.",
+                "code_example": "try {\n    processData();\n} catch (IOException ex) {\n    logger.error(\"I/O error\", ex);\n} finally {\n    cleanupState(); // Always runs (even on return in try/catch)\n}",
+                "pitfalls": "Using return inside a finally block: this silences any uncaught exception thrown in try/catch and completely overrides earlier return values."
+              }
             },
             {
               "id": "UzAxOkMwMDM6VjAyOkpTMkRNQ0FS",
@@ -429,7 +525,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.20",
                   "description": "Multi-catch parameter constraints and effectively final rethrow typing."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Java 7+ multi-catch syntax groups disjoint exception types into a single catch block using the pipe (|) operator. The multi-catch variable is implicitly final.",
+                "mental_model": "Disjoint union: Handles multiple unrelated failure types without repeating identical error handling boilerplate.",
+                "code_example": "try {\n    executeRemoteCall();\n} catch (SQLException | IOException e) {\n    // e is implicitly final, cannot be reassigned\n    logger.error(\"Call failed: \" + e.getMessage(), e);\n    throw e; // Precise rethrow\n}",
+                "pitfalls": "Attempting to combine parent and subclass exceptions in the same multi-catch (e.g. catch (FileNotFoundException | IOException e)). The compiler flags this as an illegal redundancy."
+              }
             },
             {
               "id": "UzAxOkMwMDM6VjAzOkpTMkRGQ1dUV1I",
@@ -446,7 +548,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-14.html#jls-14.20.3",
                   "description": "Extended try statement with automatic resource closing and suppressed exception collection."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Try-with-resources (Automatic Resource Management) guarantees that resources implementing AutoCloseable are closed at block exit in reverse order of declaration, even if exceptions are thrown.",
+                "mental_model": "The compiler injects a hidden finally block that invokes .close(). Any exception from .close() is automatically attached to the primary exception as a suppressed exception.",
+                "code_example": "try (var in = new FileInputStream(\"a.txt\");\n     var out = new FileOutputStream(\"b.txt\")) {\n    in.transferTo(out);\n} // out is closed first, then in",
+                "pitfalls": "Declaring resources outside the try parenthesis and referencing them inside: if initialization throws, .close() is not called on earlier opened resources."
+              }
             },
             {
               "id": "UzAxOkMwMDM6VjA0OkpTMkRJQVAx",
@@ -463,7 +571,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/AutoCloseable.html#close()",
                   "description": "The `close()` method contract, idempotency expectations, and difference from `java.io.Closeable`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "AutoCloseable is the base interface for resources managed by try-with-resources. Its single close() method throws Exception (unlike Closeable which throws IOException).",
+                "mental_model": "Implementors should make close() idempotent: calling close() multiple times must have no adverse effect.",
+                "code_example": "public class DatabaseConnection implements AutoCloseable {\n    private boolean closed = false;\n    @Override\n    public void close() throws SQLException {\n        if (!closed) {\n            closed = true;\n            releaseSocket();\n        }\n    }\n}",
+                "pitfalls": "Failing to make close() idempotent or declaring throws Exception on concrete classes instead of specific checked exceptions like throws SQLException."
+              }
             },
             {
               "id": "UzAxOkMwMDM6VjA1OkpTMkRJQVAy",
@@ -480,7 +594,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Throwable.html#getSuppressed()",
                   "description": "Accessing exceptions suppressed during resource closure."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "When both the try block and resource .close() throw exceptions, Java preserves the primary exception from try and chains the closing exceptions via Throwable.addSuppressed().",
+                "mental_model": "Primary Exception -> e.getSuppressed() array contains the secondary exceptions that occurred during .close() invocation.",
+                "code_example": "try (var res = new FaultyResource()) {\n    throw new IllegalStateException(\"Primary failure\");\n} catch (Exception ex) {\n    System.out.println(ex.getMessage()); // Primary failure\n    for (Throwable s : ex.getSuppressed()) {\n        System.out.println(\"Suppressed: \" + s.getMessage());\n    }\n}",
+                "pitfalls": "Catching Throwable or swallowing suppressed exceptions during manual error logging, losing root cause forensic evidence."
+              }
             },
             {
               "id": "UzAxOkMwMDM6VjA2OkpTMkRTVFQ",
@@ -497,7 +617,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/RuntimeException.html",
                   "description": "Unchecked exceptions design rules and failure atomicity guidelines."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Custom exceptions should subclass RuntimeException (unchecked) for unrecoverable programming/system errors, or Exception (checked) for recoverable business conditions that callers must handle.",
+                "mental_model": "Effective Java Item 76: Failure atomicity: a failed method invocation should leave the object in the state it was in prior to the invocation.",
+                "code_example": "public class InsufficientFundsException extends RuntimeException {\n    private final long balance;\n    public InsufficientFundsException(long balance) {\n        super(\"Insufficient balance: \" + balance);\n        this.balance = balance;\n    }\n    public long getBalance() { return balance; }\n}",
+                "pitfalls": "Subclassing java.lang.Error or java.lang.Throwable directly: applications should only ever subclass Exception or RuntimeException."
+              }
             }
           ],
           "totalDurationSeconds": 3048
@@ -529,7 +655,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html#equals(java.lang.Object)",
                   "description": "Reflexive, symmetric, transitive, consistent, and null-safe requirements."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Java distinguishes between 8 primitive types (stored by raw bit-pattern value) and reference types (stored as pointers to heap memory). Multiple references pointing to the same heap object are aliases.",
+                "mental_model": "== on primitives compares raw values. == on objects compares reference memory addresses (identity), NOT object state.",
+                "code_example": "String s1 = new String(\"hello\");\nString s2 = new String(\"hello\");\nSystem.out.println(s1 == s2);      // false (different heap references)\nSystem.out.println(s1.equals(s2));  // true (logical content equality)",
+                "pitfalls": "Using == to compare object content, especially String or boxed wrappers like Integer (which fool developers due to small-integer caching between -128 and 127)."
+              }
             },
             {
               "id": "UzAxOkMwMDQ6VjAyOkxKQ1RFTQ",
@@ -546,7 +678,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Objects.html#equals(java.lang.Object,java.lang.Object)",
                   "description": "Safe utility method for null-tolerant object equality."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "The equals(Object) method establishes equivalence relation: it must be reflexive, symmetric, transitive, consistent, and return false for null.",
+                "mental_model": "Default Object.equals uses reference identity (this == obj). Domain classes must override equals to provide logical state equivalence.",
+                "code_example": "@Override\npublic boolean equals(Object o) {\n    if (this == o) return true;\n    if (!(o instanceof User user)) return false; // Pattern matching instanceof handles null\n    return id == user.id && Objects.equals(name, user.name);\n}",
+                "pitfalls": "Writing public boolean equals(User o) with a specific type signature instead of Object. This overloads rather than overrides Object.equals, breaking collections like HashSet."
+              }
             },
             {
               "id": "UzAxOkMwMDQ6VjAzOkxKQ09D",
@@ -568,7 +706,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Objects.html#hash(java.lang.Object...)",
                   "description": "Generating composite hash codes across object fields."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "The contract between equals and hashCode: if two objects are equal according to equals(Object), they MUST produce the identical integer from hashCode().",
+                "mental_model": "In a HashMap, hashCode() determines the bucket index array. equals() searches within the bucket linked-list/tree. Unequal hashcodes cause lookups to miss entirely.",
+                "code_example": "@Override\npublic int hashCode() {\n    return Objects.hash(id, name);\n}",
+                "pitfalls": "Overriding equals without overriding hashCode: equal objects end up in different buckets in a HashMap or HashSet, making lookup impossible."
+              }
             },
             {
               "id": "UzAxOkMwMDQ6VjA0OkpTMkRJUg",
@@ -585,7 +729,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-17.html#jls-17.5",
                   "description": "Memory model guarantees for freeze actions on final fields."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Effective Java Item 17: An immutable class cannot have its state modified after construction. It is inherently thread-safe and requires no synchronization.",
+                "mental_model": "Rules: 1) Class is final. 2) All fields private final. 3) No mutator methods. 4) Defensive copies for any mutable input or output.",
+                "code_example": "public final class Money {\n    private final BigDecimal amount;\n    public Money(BigDecimal amount) { this.amount = amount; }\n    public Money add(Money other) { return new Money(this.amount.add(other.amount)); }\n}",
+                "pitfalls": "Marking fields final but referencing a mutable object (e.g., private final List<String> items = new ArrayList<>()). Callers can still modify items in-place unless defensively copied or wrapped."
+              }
             },
             {
               "id": "UzAxOkMwMDQ6VjA1OkpEUEhN",
@@ -602,7 +752,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Collections.html#unmodifiableList(java.util.List)",
                   "description": "Defensive wrapper views and `List.copyOf()` immutable factories."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Defensive copying creates isolated duplicates of mutable constructor arguments and return values to prevent callers from breaking class encapsulation.",
+                "mental_model": "Constructors: copy input BEFORE validating invariants (to prevent TOCTOU attack). Getters: return an unmodifiable view or fresh clone.",
+                "code_example": "public final class Period {\n    private final Date start;\n    public Period(Date start) {\n        this.start = new Date(start.getTime()); // Defensive copy on input\n    }\n    public Date getStart() {\n        return new Date(start.getTime());      // Defensive copy on output\n    }\n}",
+                "pitfalls": "Performing validation before defensive copying (TOCTOU: Time-of-check to time-of-use flaw): another thread can mutate the parameter between check and copy."
+              }
             }
           ],
           "totalDurationSeconds": 2060
@@ -640,7 +796,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/io/Reader.html",
                   "description": "Character stream decoding and Unicode handling."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Java I/O is split into byte streams (InputStream and OutputStream for raw binary data) and character streams (Reader and Writer for Unicode text with character encoding).",
+                "mental_model": "Byte Stream (8-bit bytes: images, network packets) vs Character Stream (16-bit chars converted via Charset: text files, JSON).",
+                "code_example": "try (Reader reader = new InputStreamReader(new FileInputStream(\"data.txt\"), StandardCharsets.UTF_8)) {\n    int ch = reader.read();\n}",
+                "pitfalls": "Using character streams for binary data (such as images), or relying on platform-default charset instead of explicitly specifying StandardCharsets.UTF_8."
+              }
             },
             {
               "id": "UzAxOkMwMDU6VjAyOkpTMkRCUFNBQ0M",
@@ -662,7 +824,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/charset/StandardCharsets.html#UTF_8",
                   "description": "Guaranteed standard charsets including UTF-8."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "BufferedReader wraps lower-level readers to buffer data in RAM (reducing expensive disk/network OS read syscalls) and provides readLine().",
+                "mental_model": "Unbuffered: 1 read = 1 OS disk syscall. Buffered: 1 read reads 8KB into RAM buffer, subsequent calls read directly from memory.",
+                "code_example": "try (var reader = new BufferedReader(new FileReader(\"data.txt\", StandardCharsets.UTF_8))) {\n    String line;\n    while ((line = reader.readLine()) != null) {\n        process(line);\n    }\n}",
+                "pitfalls": "BufferedReader.readLine() strips line terminators (\\n, \\r\\n), which can introduce formatting bugs when writing output back to disk."
+              }
             },
             {
               "id": "UzAxOkMwMDU6VjAzOkpTMkRGTVAx",
@@ -679,7 +847,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html#resolve(java.lang.String)",
                   "description": "Path hierarchical navigation, `resolve()`, and `relativize()`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "java.nio.file.Files is the modern utility class providing static methods for file system operations (readString, writeString, copy, move, delete, exists).",
+                "mental_model": "NIO.2 operates on Path abstractions, integrating with OS-native filesystem capabilities and supporting atomic file operations.",
+                "code_example": "Path path = Path.of(\"data\", \"config.json\");\nString content = Files.readString(path, StandardCharsets.UTF_8);\nFiles.writeString(path, content, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);",
+                "pitfalls": "Using legacy java.io.File which fails silently (returning boolean false) rather than throwing descriptive IOException like Files methods."
+              }
             },
             {
               "id": "UzAxOkMwMDU6VjA0OkpTMkRGTVAy",
@@ -696,7 +870,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Files.html#readString(java.nio.file.Path)",
                   "description": "High-level file methods (`readString`, `lines`, `walk`)."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Files.lines(Path) returns a lazy Stream<String> backed by an open file channel, reading disk contents on-demand rather than loading the entire file into memory.",
+                "mental_model": "Lazy streaming avoids high heap usage for multi-gigabyte files. However, the stream holds an open operating system file descriptor.",
+                "code_example": "try (Stream<String> lines = Files.lines(Path.of(\"large.log\"))) {\n    lines.filter(l -> l.contains(\"ERROR\"))\n         .forEach(System.out::println);\n} // Critical: try-with-resources closes the file channel",
+                "pitfalls": "Failing to close Files.lines() with try-with-resources causes file descriptor leaks that lock files on Windows and exhaust OS handles on Linux."
+              }
             },
             {
               "id": "UzAxOkMwMDU6VjA1OkpTMkRNQw",
@@ -713,7 +893,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/javac.html#options-module-path",
                   "description": "Compiling modular source trees via `--module-source-path`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "The Java Platform Module System (JPMS, Project Jigsaw) encapsulates code into named modules with explicit dependency contracts declared in module-info.java.",
+                "mental_model": "Modules sit above packages: module -> packages -> classes. Modules must explicitly declare what they require and what they export.",
+                "code_example": "javac --module-source-path src -d out $(find src -name \"*.java\")\n# module-info.java:\nmodule com.example.service {\n    requires java.sql;\n    exports com.example.service.api;\n}",
+                "pitfalls": "Cyclic dependencies between modules: JPMS strictly forbids circular module references at compile time and runtime."
+              }
             },
             {
               "id": "UzAxOkMwMDU6VjA2OkpTMkRNRQ",
@@ -730,7 +916,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html#standard-options-for-java",
                   "description": "Launching modular applications with `-p` and `-m`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Modular applications are launched using the module path (-p or --module-path) and module main class flag (-m or --module), enforcing strict runtime boundary checks.",
+                "mental_model": "Module path resolves named modules with strong encapsulation; classpath treats everything as an unencapsulated unnamed module.",
+                "code_example": "java --module-path out:mods --module com.example.service/com.example.service.Main",
+                "pitfalls": "Mixing classpath and module path: classes on classpath cannot access non-exported packages of modular JARs without --add-opens flags."
+              }
             },
             {
               "id": "UzAxOkMwMDU6VjA3OkpTMkRFQVJE",
@@ -747,7 +939,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-7.html#jls-7.7",
                   "description": "`module-info.java` syntax, `requires`, and `exports`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "requires declares a dependency on another module. requires transitive re-exports the dependency so downstream consumers inherit it. exports exposes a package to consumers.",
+                "mental_model": "exports makes public types in that package visible to others. requires transitive creates transitive dependency chains (implied readability).",
+                "code_example": "module com.example.core {\n    exports com.example.core.model;           // Visible to all\n    exports com.example.core.internal to com.example.admin; // Qualified export\n    requires transitive java.logging;         // Downstream modules also read java.logging\n}",
+                "pitfalls": "Exporting a package that returns types from a non-transitive required module: clients cannot compile because they lack readability of the return type."
+              }
             },
             {
               "id": "UzAxOkMwMDU6VjA4OkpTMkRQVU9BT0Q",
@@ -764,7 +962,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-7.html#jls-7.7.4",
                   "description": "`provides ... with ...` and `uses` ServiceLoader contracts."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "provides ... with and uses implement the Service Provider Interface (SPI). open module and opens ... to permit deep reflection (e.g. for Spring/Hibernate) while restricting compile-time visibility.",
+                "mental_model": "Compile-time encapsulation allows zero access, while opens selectively allows runtime reflection access for frameworks.",
+                "code_example": "module com.example.app {\n    uses com.example.spi.PaymentProvider;\n    provides com.example.spi.PaymentProvider with com.example.impl.StripeProvider;\n    opens com.example.app.entity to org.hibernate.orm.core;\n}",
+                "pitfalls": "Omitting opens when using reflection-heavy frameworks like Spring or Jackson, causing InaccessibleObjectException at runtime."
+              }
             }
           ],
           "totalDurationSeconds": 5043
@@ -798,7 +1002,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/tutorial/java/javaOO/constructors.html",
                   "description": "Evolution of constructors and why parameter explosion hurts safety."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "The Telescoping Constructor anti-pattern occurs when multiple overloaded constructors are created with incrementally more parameters, harming readability and maintainability.",
+                "mental_model": "Constructors with 6+ parameters of the same type (int, String) lead to inverted argument bugs where accidental swaps compile cleanly.",
+                "code_example": "// Anti-pattern: which integer is width, height, or padding?\nWindow w = new Window(\"App\", 100, 200, 10, 10, true, false);",
+                "pitfalls": "Relying on JavaBeans pattern (calling parameterless constructor then setters) leaves objects partially constructed and vulnerable to race conditions."
+              }
             },
             {
               "id": "UzAxOkMwMDY6VjAyOkpEUFJXVFVUQlA",
@@ -815,7 +1025,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/StringBuilder.html#append(java.lang.String)",
                   "description": "Canonical standard library example of fluent builder methods."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Effective Java Item 2: Consider a Builder when faced with many constructor parameters, especially when many parameters are optional or of identical types.",
+                "mental_model": "Builder separates construction of a complex object from its representation, providing named fluent methods and deferred invariant validation.",
+                "code_example": "ServerConfig config = ServerConfig.builder()\n    .host(\"localhost\")\n    .port(8080)\n    .timeout(5000)\n    .build();",
+                "pitfalls": "Using builder for simple 1-2 parameter objects where a standard constructor or record would be more succinct and incur zero allocation overhead."
+              }
             },
             {
               "id": "UzAxOkMwMDY6VjAzOkpEUElBQ0JQ",
@@ -832,7 +1048,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.net.http/java/net/http/HttpRequest.Builder.html",
                   "description": "Modern immutable builder architecture in standard JDK."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "A canonical Builder is implemented as a public static class Builder inside the target class, with a private target constructor that copies validated values from the builder.",
+                "mental_model": "The builder holds mutable transient state. The target object copies fields immutably and validates invariants inside build().",
+                "code_example": "public class NutritionFacts {\n    private final int calories, fat;\n    private NutritionFacts(Builder b) {\n        this.calories = b.calories;\n        this.fat = b.fat;\n    }\n    public static class Builder {\n        private int calories, fat;\n        public Builder calories(int c) { this.calories = c; return this; }\n        public Builder fat(int f) { this.fat = f; return this; }\n        public NutritionFacts build() { return new NutritionFacts(this); }\n    }\n}",
+                "pitfalls": "Validating parameters in builder setter methods instead of build(): subsequent setter calls or concurrent modifications can invalidate early checks."
+              }
             },
             {
               "id": "UzAxOkMwMDY6VjA0OkpEUFVURk1Q",
@@ -849,7 +1071,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/List.html#of()",
                   "description": "`List.of()`, `Set.of()`, `Map.of()` static factories."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Effective Java Item 1: Consider static factory methods instead of constructors. They have names, aren't required to create a new object on each invocation, and can return subtype instances.",
+                "mental_model": "new BigInteger(...) vs BigInteger.probablePrime(...). Static factory expresses programmer intent clearly and allows caching (e.g. Boolean.valueOf()).",
+                "code_example": "public static Boolean valueOf(boolean b) {\n    return b ? Boolean.TRUE : Boolean.FALSE; // Reuses cached instance\n}",
+                "pitfalls": "Static factory methods cannot be easily identified by Javadoc as constructors are, making API exploration slightly harder without standard naming conventions (of, from, valueOf)."
+              }
             },
             {
               "id": "UzAxOkMwMDY6VjA1OkpEUFdUVVRTUA",
@@ -866,7 +1094,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.9",
                   "description": "Why single-element enums guarantee singleton safety across serialization."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Effective Java Item 3: A Singleton restricts instantiation of a class to a single object, typically used for stateless utility managers, thread pools, or hardware handles.",
+                "mental_model": "A global unique instance. Must be protected against multiple instantiations via serialization, reflection, or multiple ClassLoaders.",
+                "code_example": "// Trade-off: Singletons introduce global mutable state if not strictly immutable",
+                "pitfalls": "Singletons make unit testing difficult because they cannot be easily substituted with mock implementations unless backed by an interface."
+              }
             },
             {
               "id": "UzAxOkMwMDY6VjA2OkpEUElUU1A",
@@ -883,7 +1117,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Runtime.html#getRuntime()",
                   "description": "JDK singleton access method."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "A single-element enum is the best way to implement a Singleton in Java. It provides ironclad guarantees against multiple instantiation via reflection and serialization.",
+                "mental_model": "The JVM guarantees enum constants are instantiated exactly once when the class loads, and Java serialization automatically handles enum singletons without readResolve.",
+                "code_example": "public enum DatabaseRegistry {\n    INSTANCE;\n    private final Map<String, String> cache = new ConcurrentHashMap<>();\n    public void put(String k, String v) { cache.put(k, v); }\n}",
+                "pitfalls": "Using traditional private constructors with getInstance(): attackers can use AccessibleObject.setAccessible(true) via reflection to invoke private constructors."
+              }
             },
             {
               "id": "UzAxOkMwMDY6VjA3OkpEUFRTV1RTUA",
@@ -900,7 +1140,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.3.1.4",
                   "description": "`volatile` write memory barrier for safe double-checked initialization."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Thread-safe lazy initialization requires Double-Checked Locking with a volatile field, or the Bill Pugh Initialization-on-demand Holder Idiom.",
+                "mental_model": "Without volatile, instruction reordering allows another thread to observe a non-null reference before the object's constructor finishes writing fields.",
+                "code_example": "public class HolderSingleton {\n    private HolderSingleton() {}\n    private static class Holder {\n        static final HolderSingleton INSTANCE = new HolderSingleton();\n    }\n    public static HolderSingleton getInstance() { return Holder.INSTANCE; }\n}",
+                "pitfalls": "Double-checked locking without marking the instance field volatile: results in insidious partial initialization bugs on modern CPU memory models."
+              }
             },
             {
               "id": "UzAxOkMwMDY6VjA4OkpNTUVGR0M",
@@ -917,7 +1163,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/ref/package-summary.html#package-description",
                   "description": "Strong, soft, weak, and phantom reachability."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "An object is eligible for garbage collection as soon as it becomes unreachable through any chain of strong references originating from GC Roots.",
+                "mental_model": "GC Roots include: 1) Active local variables in thread call stacks, 2) Static class variables, 3) Active JNI pointers. If no path exists from roots, it is dead.",
+                "code_example": "Object obj = new Object(); // Reachable via local variable root\nobj = null;                // Eligible for GC: no live roots retain it",
+                "pitfalls": "Believing circular references prevent GC: if Object A references B and B references A, but neither is reachable from GC Roots, BOTH are reclaimed."
+              }
             },
             {
               "id": "UzAxOkMwMDY6VjA5OkpNTUFBU01M",
@@ -934,7 +1186,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/WeakHashMap.html",
                   "description": "Cache design without leaking unreachable keys."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Effective Java Item 7: Eliminate obsolete object references. Memory leaks in Java occur when objects that will never be used again remain unintentionally reachable from live GC roots.",
+                "mental_model": "Common leak vectors: unbounded static collections, unclosed streams/sockets, lingering event listeners/callbacks, and un-nulled elements in custom array-backed data structures.",
+                "code_example": "public Object pop() {\n    if (size == 0) throw new EmptyStackException();\n    Object result = elements[--size];\n    elements[size] = null; // Clear obsolete reference to allow GC!\n    return result;\n}",
+                "pitfalls": "Failing to unregister listeners or retaining cache keys strongly: use WeakHashMap or evicting cache libraries (Caffeine) instead of raw HashMap for caching."
+              }
             }
           ],
           "totalDurationSeconds": 1655
@@ -969,7 +1227,13 @@ window.COURSE_DATA = {
                   "url": "https://maven.apache.org/what-is-maven.html",
                   "description": "Declarative builds and dependency resolution engine."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Apache Maven is a declarative project management and comprehension tool based on the concept of a Project Object Model (POM), standardizing build lifecycles and dependency resolution.",
+                "mental_model": "Convention over configuration: Maven prescribes where source, tests, and resources belong, avoiding ad-hoc script configuration.",
+                "code_example": "mvn compile      # Compiles main source\nmvn test         # Executes JUnit tests\nmvn package      # Packages JAR/WAR into target/\nmvn clean install # Installs artifact into local ~/.m2/repository",
+                "pitfalls": "Attempting to customize directory structure arbitrarily without plugins: violating Maven conventions creates friction with external tools and CI pipelines."
+              }
             },
             {
               "id": "UzAxOkMwMDc6VjAyOklUTVRKUFM",
@@ -986,7 +1250,13 @@ window.COURSE_DATA = {
                   "url": "https://maven.apache.org/guides/introduction/introduction-to-the-standard-directory-layout.html",
                   "description": "Standard locations for production sources, test sources, and resources."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Maven's standard directory layout separates production code (src/main/java), configuration resources (src/main/resources), unit tests (src/test/java), and build output (target/).",
+                "mental_model": "Build artifacts in target/ can be safely deleted with mvn clean. Code in src/test/ is excluded from final distribution JARs.",
+                "code_example": "my-project/\n├── pom.xml\n└── src/\n    ├── main/\n    │   ├── java/com/example/App.java\n    │   └── resources/application.properties\n    └── test/\n        └── java/com/example/AppTest.java",
+                "pitfalls": "Placing properties or XML configuration files in src/main/java: non-Java files in java directories are skipped by default by maven-compiler-plugin."
+              }
             },
             {
               "id": "UzAxOkMwMDc6VjAzOklUTVRQRg",
@@ -1003,7 +1273,13 @@ window.COURSE_DATA = {
                   "url": "https://maven.apache.org/pom.html#the-basics",
                   "description": "`groupId`, `artifactId`, `version`, and packaging elements."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "The Project Object Model (pom.xml) is an XML representation of a project containing its coordinates (groupId, artifactId, version), dependencies, plugins, and build profiles.",
+                "mental_model": "GAV Coordinates uniquely identify any artifact across the global Maven ecosystem (groupId:artifactId:version).",
+                "code_example": "<project xmlns=\"http://maven.apache.org/POM/4.0.0\">\n  <modelVersion>4.0.0</modelVersion>\n  <groupId>com.example</groupId>\n  <artifactId>demo-service</artifactId>\n  <version>1.0.0-SNAPSHOT</version>\n</project>",
+                "pitfalls": "Hardcoding snapshot versions in production releases: -SNAPSHOT indicates mutable development builds that can produce non-reproducible builds."
+              }
             },
             {
               "id": "UzAxOkMwMDc6VjA0OklUTUQ",
@@ -1020,7 +1296,13 @@ window.COURSE_DATA = {
                   "url": "https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html",
                   "description": "Dependency scopes (`compile`, `test`, `provided`, `runtime`)."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Maven manages external libraries declared in <dependencies>, providing automatic transitive resolution and scoping (compile, provided, runtime, test).",
+                "mental_model": "compile (available everywhere) > test (only during test execution) > provided (compile time only, runtime provided by container/JDK) > runtime (execution only).",
+                "code_example": "<dependency>\n  <groupId>org.junit.jupiter</groupId>\n  <artifactId>junit-jupiter-api</artifactId>\n  <version>5.10.2</version>\n  <scope>test</scope>\n</dependency>",
+                "pitfalls": "Using the default compile scope for test libraries like JUnit or Mockito, accidentally bundling testing utilities into production release JARs."
+              }
             },
             {
               "id": "UzAxOkMwMDc6VjA1OklUTUlUVEJM",
@@ -1037,7 +1319,13 @@ window.COURSE_DATA = {
                   "url": "https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html",
                   "description": "Default, clean, and site lifecycles."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Maven has three standard built-in lifecycles: default (core build/deploy), clean (removes previous build output), and site (generates documentation).",
+                "mental_model": "Linear sequential phases: calling mvn package executes all prior phases: validate -> compile -> test -> package.",
+                "code_example": "mvn clean test       # Cleans target/ then compiles and runs tests\nmvn package -DskipTests # Packages JAR while skipping test execution",
+                "pitfalls": "Relying on -DskipTests in CI pipelines: this bypasses regression testing and can publish broken code to production artifact repositories."
+              }
             },
             {
               "id": "UzAxOkMwMDc6VjA2OklUTURN",
@@ -1054,7 +1342,13 @@ window.COURSE_DATA = {
                   "url": "https://maven.apache.org/pom.html#dependency-management",
                   "description": "Bill-of-Materials (BOM) imports and version governance."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "<dependencyManagement> centralizes version and exclusion declarations for multi-module projects or BOMs (Bill of Materials) without immediately pulling dependencies into the build.",
+                "mental_model": "A version lookup dictionary. Submodules declare dependencies without <version> tags, inheriting the managed version.",
+                "code_example": "<dependencyManagement>\n  <dependencies>\n    <dependency>\n      <groupId>org.springframework.boot</groupId>\n      <artifactId>spring-boot-dependencies</artifactId>\n      <version>3.2.4</version>\n      <type>pom</type>\n      <scope>import</scope>\n    </dependency>\n  </dependencies>\n</dependencyManagement>",
+                "pitfalls": "Specifying explicit <version> tags in child submodules: this overrides the central BOM and causes insidious dependency version skew."
+              }
             },
             {
               "id": "UzAxOkMwMDc6VjA3OkNHVEpUU1VKNUk",
@@ -1071,7 +1365,13 @@ window.COURSE_DATA = {
                   "url": "https://junit.org/junit5/docs/current/user-guide/#running-tests-build-maven",
                   "description": "Configuring `maven-surefire-plugin` with `junit-jupiter`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "JUnit 5 is composed of three distinct modules: JUnit Platform (test launcher), JUnit Jupiter (programming and extension model), and JUnit Vintage (backward compatibility for JUnit 3/4).",
+                "mental_model": "Platform (JVM runner foundation) + Jupiter (modern @Test API) + Surefire Plugin (Maven test execution harness).",
+                "code_example": "<dependency>\n  <groupId>org.junit.jupiter</groupId>\n  <artifactId>junit-jupiter</artifactId>\n  <version>5.10.2</version>\n  <scope>test</scope>\n</dependency>",
+                "pitfalls": "Accidentally importing org.junit.Test (JUnit 4) instead of org.junit.jupiter.api.Test (JUnit 5), resulting in tests being skipped by the Jupiter test engine."
+              }
             },
             {
               "id": "UzAxOkMwMDc6VjA4OkNHVEpUV0FSWUY",
@@ -1088,7 +1388,13 @@ window.COURSE_DATA = {
                   "url": "https://junit.org/junit5/docs/current/user-guide/#writing-tests",
                   "description": "Annotations overview: `@Test`, `@DisplayName`, `@Disabled`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "A JUnit 5 test method is annotated with @Test, requires no public modifier, returns void, and follows the Arrange-Act-Assert (AAA) pattern.",
+                "mental_model": "Arrange: set up test fixtures. Act: invoke the target business method. Assert: verify actual results against expected state.",
+                "code_example": "class CalculatorTest {\n    @Test\n    void shouldAddTwoNumbers() {\n        Calculator calc = new Calculator(); // Arrange\n        int result = calc.add(2, 3);        // Act\n        assertEquals(5, result);            // Assert\n    }\n}",
+                "pitfalls": "Making JUnit 5 test classes or methods public: JUnit 5 tests only require package-private visibility, unlike JUnit 4 which required public."
+              }
             },
             {
               "id": "UzAxOkMwMDc6VjA5OkNHVEpUQUlKNQ",
@@ -1105,7 +1411,13 @@ window.COURSE_DATA = {
                   "url": "https://junit.org/junit5/docs/current/user-guide/#writing-tests-assertions",
                   "description": "Grouped assertions via `assertAll` and exception assertions via `assertThrows`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Jupiter assertions (org.junit.jupiter.api.Assertions) verify test expectations, including standard equality, condition checks, assertThrows, and grouped assertAll.",
+                "mental_model": "Standard assertions fail-fast on the first discrepancy. assertAll executes all assertions within a group, reporting all failures together.",
+                "code_example": "assertAll(\"address\",\n    () -> assertEquals(\"NY\", address.getState()),\n    () -> assertEquals(\"10001\", address.getZip())\n);\nassertThrows(IllegalArgumentException.class, () -> calc.divide(10, 0));",
+                "pitfalls": "Flipping parameter order: assertEquals(expected, actual, message) has expected FIRST; reversing them produces confusing test failure diagnostics."
+              }
             },
             {
               "id": "UzAxOkMwMDc6VjEwOkNHVEpUSjVMSA",
@@ -1122,7 +1434,13 @@ window.COURSE_DATA = {
                   "url": "https://junit.org/junit5/docs/current/user-guide/#writing-tests-classes-and-methods",
                   "description": "Method execution sequence and instance per-class lifecycles."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "JUnit 5 provides lifecycle annotations: @BeforeEach and @AfterEach (run before/after each test method), and @BeforeAll and @AfterAll (run once per class, must be static by default).",
+                "mental_model": "BeforeClass (@BeforeAll) -> [BeforeMethod (@BeforeEach) -> Test -> AfterMethod (@AfterEach)] * N -> AfterClass (@AfterAll).",
+                "code_example": "@BeforeAll\nstatic void setupDatabase() { /* Start container once */ }\n\n@BeforeEach\nvoid resetState() { /* Clear database tables before each test */ }",
+                "pitfalls": "Using non-static methods for @BeforeAll / @AfterAll without @TestInstance(TestInstance.Lifecycle.PER_CLASS), causing runtime initialization errors."
+              }
             }
           ],
           "totalDurationSeconds": 2321
@@ -1159,7 +1477,13 @@ window.COURSE_DATA = {
                   "url": "https://www.oracle.com/java/technologies/javase/seccodeguide.html#8",
                   "description": "Vulnerability vectors, gadget chains, and deserialization filtering (`ObjectInputFilter`)."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Java object serialization converts an in-memory object graph into a binary byte stream via ObjectOutputStream, requiring the class to implement java.io.Serializable.",
+                "mental_model": "The JVM traverses the entire reachable object graph, serializing all non-transient, non-static fields into binary format.",
+                "code_example": "public class User implements java.io.Serializable {\n    private static final long serialVersionUID = 1L;\n    private String username;\n}",
+                "pitfalls": "Omitting serialVersionUID: the JVM computes one automatically based on class structure, causing InvalidClassException upon deserialization if any field changes."
+              }
             },
             {
               "id": "UzAxOkMwMDg6VjAyOkpTMkRDUw",
@@ -1176,7 +1500,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/io/ObjectOutputStream.html#writeObject(java.lang.Object)",
                   "description": "Customizing serialization with `writeObject` and `readObject`."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Custom serialization uses the transient keyword to skip sensitive or non-serializable fields, and readResolve() to enforce singleton invariants upon deserialization.",
+                "mental_model": "transient fields are reset to default zeroes/nulls during deserialization. readResolve substitutes the deserialized instance with a canonical reference.",
+                "code_example": "public class Credentials implements java.io.Serializable {\n    private String username;\n    private transient String password; // Will not be saved to stream\n    \n    private Object readResolve() { return CanonicalInstance.INSTANCE; }\n}",
+                "pitfalls": "Native Java deserialization is inherently vulnerable to Remote Code Execution (RCE) via gadget chains: avoid using Java native serialization for untrusted inputs."
+              }
             },
             {
               "id": "UzAxOkMwMDg6VjAzOkpTMkRFVkFJ",
@@ -1193,7 +1523,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.9.2",
                   "description": "Enum constants and implicit `values()` / `valueOf()` generation."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "A Java enum is a specialized reference type extending java.lang.Enum representing a fixed set of named constants initialized when the enum class loads.",
+                "mental_model": "Each enum constant is a public static final instance of the enum class, created once during class initialization.",
+                "code_example": "public enum OrderStatus {\n    PENDING, PROCESSING, COMPLETED, CANCELLED;\n}\n// Usage:\nfor (OrderStatus s : OrderStatus.values()) {\n    System.out.println(s.ordinal() + \": \" + s.name());\n}",
+                "pitfalls": "Relying on ordinal() for database persistence: reordering enum constants shifts their numeric ordinals, silently corrupting stored data."
+              }
             },
             {
               "id": "UzAxOkMwMDg6VjA0OkpTMkRFRkFN",
@@ -1210,7 +1546,13 @@ window.COURSE_DATA = {
                   "url": "https://docs.oracle.com/javase/specs/jls/se21/html/jls-8.html#jls-8.9.2",
                   "description": "Custom methods, constant-specific class bodies, and constructor privacy."
                 }
-              ]
+              ],
+              "notes": {
+                "definition": "Enums in Java are full-fledged classes that can have instance fields, constructors (private by default), methods, and constant-specific class bodies implementing abstract methods.",
+                "mental_model": "Constant-specific method body: each enum constant acts as an anonymous subclass overriding the base enum method.",
+                "code_example": "public enum Operation {\n    PLUS(\"+\")  { public double apply(double x, double y) { return x + y; } },\n    MINUS(\"-\") { public double apply(double x, double y) { return x - y; } };\n    \n    private final String symbol;\n    Operation(String symbol) { this.symbol = symbol; }\n    public abstract double apply(double x, double y);\n}",
+                "pitfalls": "Declaring mutable fields in an enum: enum constants are effectively global singletons, so mutable state creates thread-safety hazards and race conditions."
+              }
             }
           ],
           "totalDurationSeconds": 1594

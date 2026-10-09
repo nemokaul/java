@@ -966,7 +966,497 @@
       );
       videoCards.forEach(card => observer.observe(card));
     }
+
+    // Initialize Flashcard Badges and triggers
+    initFlashcardSystem();
   });
+
+  // =========================================================================
+  // FLASHCARD & MCQ STUDY ENGINE
+  // =========================================================================
+  const FC_STORAGE_KEY = "java_course_tracker_mcq_flashcards_v1";
+  let fcState = {
+    version: 1,
+    decks: {} // [deckId]: { cards: { [cardId]: { status: 'mastered'|'needs_review', selectedOpt: string, isCorrect: boolean } } }
+  };
+
+  function loadFcState() {
+    try {
+      const raw = localStorage.getItem(FC_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.decks) {
+          fcState = { ...fcState, ...parsed };
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load flashcard progress", e);
+    }
+  }
+
+  function saveFcState() {
+    try {
+      localStorage.setItem(FC_STORAGE_KEY, JSON.stringify(fcState));
+    } catch (e) {
+      console.error("Could not save flashcard progress", e);
+    }
+  }
+
+  loadFcState();
+
+  const deckCache = {};
+  let currentDeck = null;
+  let currentCardIndex = 0;
+  let isCardFlipped = false;
+  let isOptionLocked = false;
+
+  function getFlashcardUrl(deckId) {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return `/data/flashcards/${deckId}.json`;
+    }
+    const metaBase = document.querySelector('meta[name="base-url"]')?.getAttribute('content');
+    const base = metaBase ? (metaBase.endsWith('/') ? metaBase : metaBase + '/') : '/';
+    return `${base}data/flashcards/${deckId}.json`;
+  }
+
+  async function fetchDeck(deckId) {
+    if (deckCache[deckId]) return deckCache[deckId];
+    const url = getFlashcardUrl(deckId);
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      throw new Error(`Failed to load flashcard deck: ${deckId} (HTTP ${resp.status})`);
+    }
+    const data = await resp.json();
+    deckCache[deckId] = data;
+    return data;
+  }
+
+  function getDeckMasteryStats(deckId, totalCards) {
+    const deckRecord = fcState.decks[deckId];
+    if (!deckRecord || !deckRecord.cards) {
+      return { mastered: 0, needsReview: 0, total: totalCards || 0, pct: 0 };
+    }
+    let mastered = 0;
+    let needsReview = 0;
+    Object.values(deckRecord.cards).forEach(c => {
+      if (c.status === "mastered") mastered++;
+      else if (c.status === "needs_review") needsReview++;
+    });
+    const total = totalCards || Object.keys(deckRecord.cards).length || 1;
+    const pct = total > 0 ? Math.round((mastered / total) * 100) : 0;
+    return { mastered, needsReview, total, pct };
+  }
+
+  function syncFlashcardBadges() {
+    const badges = document.querySelectorAll("[data-deck-badge]");
+    badges.forEach(badge => {
+      const deckId = badge.getAttribute("data-deck-badge");
+      if (!deckId) return;
+      const totalAttr = badge.getAttribute("data-deck-total");
+      const total = totalAttr ? parseInt(totalAttr, 10) : 8;
+      const stats = getDeckMasteryStats(deckId, total);
+      badge.textContent = `${stats.mastered}/${total} Mastered`;
+      if (stats.mastered === total && total > 0) {
+        badge.classList.remove("bg-white", "dark:bg-[#161b22]");
+        badge.classList.add("bg-emerald-100", "dark:bg-emerald-950/60", "text-emerald-700", "dark:text-emerald-300");
+      }
+    });
+  }
+
+  async function openFlashcards(deckId) {
+    const modal = document.getElementById("flashcard-modal");
+    if (!modal) return;
+
+    modal.classList.remove("hidden");
+    document.body.classList.add("overflow-hidden");
+
+    const titleEl = document.getElementById("fc-modal-title");
+    if (titleEl) titleEl.textContent = `Loading ${deckId}...`;
+
+    try {
+      currentDeck = await fetchDeck(deckId);
+      currentCardIndex = 0;
+      isCardFlipped = false;
+      isOptionLocked = false;
+      renderCurrentCard();
+      window.addEventListener("keydown", handleFlashcardKeydown);
+    } catch (err) {
+      console.error(err);
+      if (titleEl) titleEl.textContent = `Error loading deck: ${deckId}`;
+    }
+  }
+
+  function closeFlashcards() {
+    const modal = document.getElementById("flashcard-modal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    document.body.classList.remove("overflow-hidden");
+    window.removeEventListener("keydown", handleFlashcardKeydown);
+    syncFlashcardBadges();
+  }
+
+  function renderCurrentCard() {
+    if (!currentDeck || !currentDeck.cards || currentDeck.cards.length === 0) return;
+
+    const card = currentDeck.cards[currentCardIndex];
+    const total = currentDeck.cards.length;
+    const deckId = currentDeck.deckId;
+
+    // Header updates
+    const titleEl = document.getElementById("fc-modal-title");
+    if (titleEl) titleEl.textContent = currentDeck.title;
+
+    const counterEl = document.getElementById("fc-deck-counter");
+    if (counterEl) counterEl.textContent = `Card ${currentCardIndex + 1} of ${total}`;
+
+    const navIndicator = document.getElementById("fc-nav-card-indicator");
+    if (navIndicator) navIndicator.textContent = `${currentCardIndex + 1} / ${total}`;
+
+    const masteryStats = getDeckMasteryStats(deckId, total);
+    const masteryStatEl = document.getElementById("fc-mastery-stat");
+    if (masteryStatEl) {
+      masteryStatEl.textContent = `${masteryStats.mastered} Mastered (${masteryStats.pct}%)`;
+    }
+
+    const progressBar = document.getElementById("fc-progress-bar");
+    if (progressBar) {
+      progressBar.style.width = `${masteryStats.pct}%`;
+    }
+
+    // Prev / Next button states
+    const btnPrev = document.getElementById("fc-btn-prev");
+    const btnNext = document.getElementById("fc-btn-next");
+    if (btnPrev) btnPrev.disabled = currentCardIndex === 0;
+    if (btnNext) btnNext.disabled = currentCardIndex === total - 1;
+
+    // Reset flip state
+    isCardFlipped = false;
+    const cardInner = document.getElementById("fc-card-inner");
+    if (cardInner) cardInner.classList.remove("is-flipped");
+
+    // Front Face Rendering
+    const badgeEl = document.getElementById("fc-card-badge");
+    if (badgeEl) badgeEl.textContent = `${card.category || "General"} • ${card.difficulty || "Beginner"}`;
+
+    const savedCardState = fcState.decks[deckId]?.cards?.[card.id];
+    const statusEl = document.getElementById("fc-card-status");
+    if (statusEl) {
+      if (savedCardState?.status === "mastered") {
+        statusEl.textContent = "✅ Mastered";
+        statusEl.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800";
+      } else if (savedCardState?.status === "needs_review") {
+        statusEl.textContent = "⚠️ Needs Review";
+        statusEl.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800";
+      } else {
+        statusEl.textContent = "Not Answered";
+        statusEl.className = "text-[10px] font-mono px-2 py-0.5 rounded border border-[#d0d7de] dark:border-[#30363d] text-[#656d76] dark:text-[#8b949e]";
+      }
+    }
+
+    const questionEl = document.getElementById("fc-question-text");
+    if (questionEl) questionEl.textContent = card.question;
+
+    // MCQ Options
+    const optContainer = document.getElementById("fc-options-container");
+    if (optContainer) {
+      optContainer.innerHTML = "";
+      isOptionLocked = !!savedCardState;
+
+      card.options.forEach((opt, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "mcq-option-btn";
+        btn.setAttribute("data-opt-id", opt.id);
+
+        const badge = document.createElement("span");
+        badge.className = "mcq-badge";
+        badge.textContent = opt.id;
+
+        const textSpan = document.createElement("span");
+        textSpan.className = "flex-1";
+        textSpan.textContent = opt.text;
+
+        btn.appendChild(badge);
+        btn.appendChild(textSpan);
+
+        if (savedCardState) {
+          btn.disabled = true;
+          if (opt.correct) {
+            btn.classList.add("opt-correct");
+          } else if (savedCardState.selectedOpt === opt.id && !opt.correct) {
+            btn.classList.add("opt-wrong");
+          }
+        } else {
+          btn.addEventListener("click", () => handleOptionSelection(opt.id));
+        }
+
+        optContainer.appendChild(btn);
+      });
+    }
+
+    // Back Face Rendering
+    const resultBanner = document.getElementById("fc-result-banner");
+    const resultText = document.getElementById("fc-result-text");
+    if (resultBanner && resultText) {
+      if (savedCardState?.isCorrect) {
+        resultBanner.className = "flex items-center gap-2 p-2.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800";
+        resultText.textContent = "🎉 Correct! Excellent recall.";
+      } else if (savedCardState && !savedCardState.isCorrect) {
+        resultBanner.className = "flex items-center gap-2 p-2.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900";
+        resultText.textContent = "Review Required. Here is the accurate breakdown:";
+      } else {
+        resultBanner.className = "flex items-center gap-2 p-2.5 rounded-lg text-xs font-semibold bg-neutral-100 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700";
+        resultText.textContent = "Concept Breakdown & Deep Dive:";
+      }
+    }
+
+    const expText = document.getElementById("fc-explanation-text");
+    if (expText) expText.textContent = card.explanation;
+
+    const codeContainer = document.getElementById("fc-code-container");
+    const codeSnippet = document.getElementById("fc-code-snippet");
+    if (codeContainer && codeSnippet) {
+      if (card.codeSnippet) {
+        codeContainer.classList.remove("hidden");
+        codeSnippet.textContent = card.codeSnippet;
+      } else {
+        codeContainer.classList.add("hidden");
+      }
+    }
+
+    const pitfallContainer = document.getElementById("fc-pitfall-container");
+    const pitfallText = document.getElementById("fc-pitfall-text");
+    if (pitfallContainer && pitfallText) {
+      if (card.pitfall) {
+        pitfallContainer.classList.remove("hidden");
+        pitfallText.textContent = card.pitfall;
+      } else {
+        pitfallContainer.classList.add("hidden");
+      }
+    }
+
+    const citationText = document.getElementById("fc-citation-text");
+    if (citationText) citationText.textContent = card.citation || "Java SE 21 Specification";
+  }
+
+  function handleOptionSelection(optId) {
+    if (isOptionLocked || !currentDeck) return;
+    isOptionLocked = true;
+
+    const card = currentDeck.cards[currentCardIndex];
+    const deckId = currentDeck.deckId;
+    const selectedOption = card.options.find(o => o.id === optId);
+    const isCorrect = selectedOption ? !!selectedOption.correct : false;
+
+    // Initialize deck in state if not present
+    if (!fcState.decks[deckId]) {
+      fcState.decks[deckId] = { cards: {} };
+    }
+
+    // Persist card answer & mastery
+    fcState.decks[deckId].cards[card.id] = {
+      status: isCorrect ? "mastered" : "needs_review",
+      selectedOpt: optId,
+      isCorrect: isCorrect,
+      updatedAt: Date.now()
+    };
+    saveFcState();
+
+    // Visual feedback on options
+    const optionButtons = document.querySelectorAll("#fc-options-container .mcq-option-btn");
+    optionButtons.forEach(btn => {
+      btn.disabled = true;
+      const bId = btn.getAttribute("data-opt-id");
+      const optObj = card.options.find(o => o.id === bId);
+      if (optObj && optObj.correct) {
+        btn.classList.add("opt-correct");
+      } else if (bId === optId && !isCorrect) {
+        btn.classList.add("opt-wrong");
+      }
+    });
+
+    // Update status badge
+    const statusEl = document.getElementById("fc-card-status");
+    if (statusEl) {
+      if (isCorrect) {
+        statusEl.textContent = "✅ Mastered";
+        statusEl.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800";
+      } else {
+        statusEl.textContent = "⚠️ Needs Review";
+        statusEl.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800";
+      }
+    }
+
+    // Update mastery stat and progress bar
+    const masteryStats = getDeckMasteryStats(deckId, currentDeck.cards.length);
+    const masteryStatEl = document.getElementById("fc-mastery-stat");
+    if (masteryStatEl) masteryStatEl.textContent = `${masteryStats.mastered} Mastered (${masteryStats.pct}%)`;
+    const progressBar = document.getElementById("fc-progress-bar");
+    if (progressBar) progressBar.style.width = `${masteryStats.pct}%`;
+
+    // Automatically flip to explanation after short delay
+    setTimeout(() => {
+      flipCard(true);
+    }, 450);
+  }
+
+  function flipCard(forceState) {
+    isCardFlipped = typeof forceState === "boolean" ? forceState : !isCardFlipped;
+    const inner = document.getElementById("fc-card-inner");
+    if (inner) {
+      if (isCardFlipped) {
+        inner.classList.add("is-flipped");
+      } else {
+        inner.classList.remove("is-flipped");
+      }
+    }
+  }
+
+  function setCardStatus(status) {
+    if (!currentDeck) return;
+    const card = currentDeck.cards[currentCardIndex];
+    const deckId = currentDeck.deckId;
+
+    if (!fcState.decks[deckId]) {
+      fcState.decks[deckId] = { cards: {} };
+    }
+    const currentRecord = fcState.decks[deckId].cards[card.id] || {};
+    fcState.decks[deckId].cards[card.id] = {
+      ...currentRecord,
+      status: status,
+      updatedAt: Date.now()
+    };
+    saveFcState();
+
+    // Advance to next card if available
+    if (currentCardIndex < currentDeck.cards.length - 1) {
+      currentCardIndex++;
+      renderCurrentCard();
+    } else {
+      renderCurrentCard();
+    }
+  }
+
+  function handleFlashcardKeydown(e) {
+    if (e.key === "Escape") {
+      closeFlashcards();
+      return;
+    }
+
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+
+    if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+      flipCard();
+    } else if (e.key === "ArrowLeft" || e.key === "j" || e.key === "J") {
+      e.preventDefault();
+      if (currentCardIndex > 0) {
+        currentCardIndex--;
+        renderCurrentCard();
+      }
+    } else if (e.key === "ArrowRight" || e.key === "k" || e.key === "K") {
+      e.preventDefault();
+      if (currentDeck && currentCardIndex < currentDeck.cards.length - 1) {
+        currentCardIndex++;
+        renderCurrentCard();
+      }
+    } else if (!isCardFlipped && (e.key === "1" || e.key === "a" || e.key === "A")) {
+      handleOptionSelection("A");
+    } else if (!isCardFlipped && (e.key === "2" || e.key === "b" || e.key === "B")) {
+      handleOptionSelection("B");
+    } else if (!isCardFlipped && (e.key === "3" || e.key === "c" || e.key === "C")) {
+      handleOptionSelection("C");
+    } else if (!isCardFlipped && (e.key === "4" || e.key === "d" || e.key === "D")) {
+      handleOptionSelection("D");
+    } else if (isCardFlipped && (e.key === "1" || e.key === "r" || e.key === "R")) {
+      setCardStatus("needs_review");
+    } else if (isCardFlipped && (e.key === "2" || e.key === "m" || e.key === "M")) {
+      setCardStatus("mastered");
+    }
+  }
+
+  function initFlashcardSystem() {
+    // Bind modal controls
+    const btnClose = document.getElementById("fc-btn-close");
+    if (btnClose) btnClose.addEventListener("click", closeFlashcards);
+
+    const btnFlipFront = document.getElementById("fc-btn-flip-front");
+    if (btnFlipFront) btnFlipFront.addEventListener("click", () => flipCard(true));
+
+    const btnFlipBack = document.getElementById("fc-btn-flip-back");
+    if (btnFlipBack) btnFlipBack.addEventListener("click", () => flipCard(false));
+
+    const btnRateReview = document.getElementById("fc-btn-rate-review");
+    if (btnRateReview) btnRateReview.addEventListener("click", () => setCardStatus("needs_review"));
+
+    const btnRateMastered = document.getElementById("fc-btn-rate-mastered");
+    if (btnRateMastered) btnRateMastered.addEventListener("click", () => setCardStatus("mastered"));
+
+    const btnPrev = document.getElementById("fc-btn-prev");
+    if (btnPrev) {
+      btnPrev.addEventListener("click", () => {
+        if (currentCardIndex > 0) {
+          currentCardIndex--;
+          renderCurrentCard();
+        }
+      });
+    }
+
+    const btnNext = document.getElementById("fc-btn-next");
+    if (btnNext) {
+      btnNext.addEventListener("click", () => {
+        if (currentDeck && currentCardIndex < currentDeck.cards.length - 1) {
+          currentCardIndex++;
+          renderCurrentCard();
+        }
+      });
+    }
+
+    const btnShuffle = document.getElementById("fc-btn-shuffle");
+    if (btnShuffle) {
+      btnShuffle.addEventListener("click", () => {
+        if (currentDeck && currentDeck.cards) {
+          currentDeck.cards.sort(() => Math.random() - 0.5);
+          currentCardIndex = 0;
+          renderCurrentCard();
+        }
+      });
+    }
+
+    const btnResetDeck = document.getElementById("fc-btn-reset-deck");
+    if (btnResetDeck) {
+      btnResetDeck.addEventListener("click", () => {
+        if (!currentDeck) return;
+        if (confirm(`Reset all progress for ${currentDeck.title}?`)) {
+          delete fcState.decks[currentDeck.deckId];
+          saveFcState();
+          renderCurrentCard();
+          syncFlashcardBadges();
+        }
+      });
+    }
+
+    // Modal background click to close
+    const modal = document.getElementById("flashcard-modal");
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeFlashcards();
+      });
+    }
+
+    // Bind triggers on page
+    document.addEventListener("click", (e) => {
+      const trigger = e.target.closest("[data-open-flashcards]");
+      if (trigger) {
+        e.preventDefault();
+        e.stopPropagation();
+        const deckId = trigger.getAttribute("data-open-flashcards");
+        if (deckId) openFlashcards(deckId);
+      }
+    });
+
+    syncFlashcardBadges();
+  }
 
   // Expose global tracker API
   window.CourseTracker = {
@@ -980,6 +1470,11 @@
     updateActiveSidebarItem,
     syncUI,
     exportProgressJSON,
-    resetAllProgress
+    resetAllProgress,
+    openFlashcards,
+    closeFlashcards,
+    getDeckMasteryStats,
+    syncFlashcardBadges
   };
 })();
+
