@@ -1869,9 +1869,126 @@
         const deckId = trigger.getAttribute("data-open-flashcards");
         if (deckId) openFlashcards(deckId);
       }
+
+      const aiBtn = e.target.closest("[data-ask-ai-provider]");
+      if (aiBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleAskAIClick(aiBtn);
+      }
     });
 
     syncFlashcardBadges();
+  }
+
+  // =========================================================================
+  // Ask AI Assistant URL Generator & Handler
+  // =========================================================================
+  const AI_PROVIDERS = {
+    claude: {
+      name: "Anthropic Claude",
+      url: "https://claude.ai/new?q=%s"
+    },
+    chatgpt: {
+      name: "OpenAI ChatGPT",
+      url: "https://chatgpt.com/?q=%s"
+    },
+    mistral: {
+      name: "Mistral Le Chat",
+      url: "https://chat.mistral.ai/chat?q=%s"
+    },
+    gemini: {
+      name: "Google Gemini",
+      url: "https://www.google.com/search?udm=50&q=%s"
+    },
+    copilot: {
+      name: "Bing CopilotSearch",
+      url: "https://www.bing.com/copilotsearch?q=%s"
+    },
+    grok: {
+      name: "xAI Grok",
+      url: "https://grok.com/?q=%s"
+    },
+    brave: {
+      name: "Brave Search",
+      url: "https://search.brave.com/ask?q=%s"
+    }
+  };
+
+  function handleAskAIClick(btn) {
+    const providerKey = btn.getAttribute("data-ask-ai-provider");
+    const provider = AI_PROVIDERS[providerKey];
+    if (!provider) return;
+
+    let prompt = "";
+    const isFlashcard = btn.closest("#flashcard-modal") !== null || btn.getAttribute("data-context-type") === "flashcard";
+
+    if (isFlashcard) {
+      if (!currentDeck || !currentDeck.cards || !currentDeck.cards[currentCardIndex]) return;
+      const card = currentDeck.cards[currentCardIndex];
+      const correctOpt = card.options ? card.options.find(o => o.correct) : null;
+      const pageUrl = window.location.href;
+
+      prompt = `I am practicing Java multiple-choice flashcards from the course:
+Deck: ${currentDeck.title || 'Java Mastery'}
+
+Question:
+${card.question}
+
+Correct Answer:
+${correctOpt ? `Option ${correctOpt.id}: ${correctOpt.text}` : 'See explanation'}
+
+Concept Breakdown & Rationale:
+${card.explanation || ''}
+${card.codeSnippet ? `\nCode Snippet / Verification:\n${card.codeSnippet}\n` : ''}${card.pitfall ? `\nCommon Pitfall:\n${card.pitfall}\n` : ''}
+Authoritative Source:
+${card.citation || 'Oracle Java SE Documentation'}
+
+Reference URL:
+${pageUrl}
+
+Please provide an in-depth explanation of this concept, why this option is correct, how it works under the hood in the JVM, and practical enterprise best practices.`;
+    } else {
+      // Video lesson comprehensive study notes
+      const videoCard = btn.closest(".video-card");
+      const videoKey = videoCard ? videoCard.getAttribute("data-video-key") : null;
+      const titleEl = videoCard ? videoCard.querySelector("[data-video-link] span") : null;
+      const lessonTitle = titleEl ? titleEl.textContent.trim() : (videoCard ? videoCard.id : "Java Concept");
+
+      // Extract notes text if available from the card
+      const notesDetails = videoCard ? videoCard.querySelector(".video-notes-details") : null;
+      let notesSummary = "";
+      if (notesDetails) {
+        const paras = notesDetails.querySelectorAll("p");
+        paras.forEach(p => {
+          const text = p.textContent.trim();
+          if (text) notesSummary += text + "\n\n";
+        });
+        const codeEl = notesDetails.querySelector("pre code");
+        if (codeEl) {
+          notesSummary += "Code Snippet:\n" + codeEl.textContent.trim() + "\n\n";
+        }
+      }
+
+      // Exact URL with anchor hash
+      const pageUrl = videoKey
+        ? `${window.location.origin}${window.location.pathname}#video-${videoKey}`
+        : window.location.href;
+
+      prompt = `I am studying this Java lesson from the LinkedIn Learning course notes:
+Lesson Title: ${lessonTitle}
+
+Key Concepts & Architecture:
+${notesSummary.trim() || 'Java Architecture and Production Patterns'}
+
+Reference URL:
+${pageUrl}
+
+Please explain these Java concepts thoroughly, including architectural implications, memory/runtime mechanics, common pitfalls to avoid, and concrete production code examples.`;
+    }
+
+    const finalUrl = provider.url.replace("%s", encodeURIComponent(prompt));
+    window.open(finalUrl, "_blank", "noopener,noreferrer");
   }
 
   // Expose global tracker API
@@ -1893,7 +2010,9 @@
     openFlashcards,
     closeFlashcards,
     getDeckMasteryStats,
-    syncFlashcardBadges
+    syncFlashcardBadges,
+    askAI: handleAskAIClick,
+    AI_PROVIDERS
   };
 })();
 
