@@ -1376,7 +1376,34 @@
     }
   }
 
+  function closeAskAIDropdown() {
+    const dropdown = document.getElementById("fc-ask-ai-dropdown");
+    const toggleBtn = document.getElementById("fc-ask-ai-toggle-btn");
+    const arrow = document.getElementById("fc-ask-ai-arrow");
+    if (dropdown) dropdown.classList.add("hidden");
+    if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
+    if (arrow) arrow.classList.remove("rotate-180");
+  }
+
+  function toggleAskAIDropdown() {
+    const dropdown = document.getElementById("fc-ask-ai-dropdown");
+    const toggleBtn = document.getElementById("fc-ask-ai-toggle-btn");
+    const arrow = document.getElementById("fc-ask-ai-arrow");
+    if (!dropdown) return;
+    const isHidden = dropdown.classList.contains("hidden");
+    if (isHidden) {
+      dropdown.classList.remove("hidden");
+      if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "true");
+      if (arrow) arrow.classList.add("rotate-180");
+    } else {
+      dropdown.classList.add("hidden");
+      if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
+      if (arrow) arrow.classList.remove("rotate-180");
+    }
+  }
+
   function closeFlashcards() {
+    closeAskAIDropdown();
     const modal = document.getElementById("flashcard-modal");
     if (!modal) return;
     modal.classList.add("hidden");
@@ -1387,6 +1414,7 @@
 
   function renderCurrentCard() {
     if (!currentDeck || !currentDeck.cards || currentDeck.cards.length === 0) return;
+    closeAskAIDropdown();
 
     const card = currentDeck.cards[currentCardIndex];
     const total = currentDeck.cards.length;
@@ -1717,6 +1745,7 @@
 
   function flipCard(forceState) {
     isCardFlipped = typeof forceState === "boolean" ? forceState : !isCardFlipped;
+    closeAskAIDropdown();
     const inner = document.getElementById("fc-card-inner");
     if (inner) {
       if (isCardFlipped) {
@@ -1755,6 +1784,12 @@
 
   function handleFlashcardKeydown(e) {
     if (e.key === "Escape") {
+      const dropdown = document.getElementById("fc-ask-ai-dropdown");
+      if (dropdown && !dropdown.classList.contains("hidden")) {
+        closeAskAIDropdown();
+        e.preventDefault();
+        return;
+      }
       closeFlashcards();
       return;
     }
@@ -1868,13 +1903,30 @@
         e.stopPropagation();
         const deckId = trigger.getAttribute("data-open-flashcards");
         if (deckId) openFlashcards(deckId);
+        return;
+      }
+
+      // Ask AI dropdown toggle button
+      const aiToggleBtn = e.target.closest("#fc-ask-ai-toggle-btn");
+      if (aiToggleBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleAskAIDropdown();
+        return;
       }
 
       const aiBtn = e.target.closest("[data-ask-ai-provider]");
       if (aiBtn) {
         e.preventDefault();
         e.stopPropagation();
+        closeAskAIDropdown();
         handleAskAIClick(aiBtn);
+        return;
+      }
+
+      // Close dropdown if clicked outside menu wrapper
+      if (!e.target.closest("#fc-ask-ai-menu-wrapper")) {
+        closeAskAIDropdown();
       }
     });
 
