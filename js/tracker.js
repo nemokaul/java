@@ -1376,34 +1376,29 @@
     }
   }
 
-  function closeAskAIDropdown() {
-    const dropdown = document.getElementById("fc-ask-ai-dropdown");
-    const toggleBtn = document.getElementById("fc-ask-ai-toggle-btn");
-    const arrow = document.getElementById("fc-ask-ai-arrow");
-    if (dropdown) dropdown.classList.add("hidden");
-    if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
-    if (arrow) arrow.classList.remove("rotate-180");
+  function closeAskAIDock() {
+    const dock = document.getElementById("fc-ask-ai-slide-dock");
+    const trigger = document.getElementById("fc-ask-ai-slide-trigger");
+    if (dock) dock.classList.remove("is-expanded");
+    if (trigger) trigger.setAttribute("aria-expanded", "false");
   }
 
-  function toggleAskAIDropdown() {
-    const dropdown = document.getElementById("fc-ask-ai-dropdown");
-    const toggleBtn = document.getElementById("fc-ask-ai-toggle-btn");
-    const arrow = document.getElementById("fc-ask-ai-arrow");
-    if (!dropdown) return;
-    const isHidden = dropdown.classList.contains("hidden");
-    if (isHidden) {
-      dropdown.classList.remove("hidden");
-      if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "true");
-      if (arrow) arrow.classList.add("rotate-180");
+  function toggleAskAIDock() {
+    const dock = document.getElementById("fc-ask-ai-slide-dock");
+    const trigger = document.getElementById("fc-ask-ai-slide-trigger");
+    if (!dock) return;
+    const isExpanded = dock.classList.contains("is-expanded");
+    if (isExpanded) {
+      dock.classList.remove("is-expanded");
+      if (trigger) trigger.setAttribute("aria-expanded", "false");
     } else {
-      dropdown.classList.add("hidden");
-      if (toggleBtn) toggleBtn.setAttribute("aria-expanded", "false");
-      if (arrow) arrow.classList.remove("rotate-180");
+      dock.classList.add("is-expanded");
+      if (trigger) trigger.setAttribute("aria-expanded", "true");
     }
   }
 
   function closeFlashcards() {
-    closeAskAIDropdown();
+    closeAskAIDock();
     const modal = document.getElementById("flashcard-modal");
     if (!modal) return;
     modal.classList.add("hidden");
@@ -1414,7 +1409,7 @@
 
   function renderCurrentCard() {
     if (!currentDeck || !currentDeck.cards || currentDeck.cards.length === 0) return;
-    closeAskAIDropdown();
+    closeAskAIDock();
 
     const card = currentDeck.cards[currentCardIndex];
     const total = currentDeck.cards.length;
@@ -1745,7 +1740,7 @@
 
   function flipCard(forceState) {
     isCardFlipped = typeof forceState === "boolean" ? forceState : !isCardFlipped;
-    closeAskAIDropdown();
+    closeAskAIDock();
     const inner = document.getElementById("fc-card-inner");
     if (inner) {
       if (isCardFlipped) {
@@ -1784,9 +1779,9 @@
 
   function handleFlashcardKeydown(e) {
     if (e.key === "Escape") {
-      const dropdown = document.getElementById("fc-ask-ai-dropdown");
-      if (dropdown && !dropdown.classList.contains("hidden")) {
-        closeAskAIDropdown();
+      const dock = document.getElementById("fc-ask-ai-slide-dock");
+      if (dock && dock.classList.contains("is-expanded")) {
+        closeAskAIDock();
         e.preventDefault();
         return;
       }
@@ -1906,12 +1901,12 @@
         return;
       }
 
-      // Ask AI dropdown toggle button
-      const aiToggleBtn = e.target.closest("#fc-ask-ai-toggle-btn");
-      if (aiToggleBtn) {
+      // Ask AI slide dock trigger button (mobile toggle & click)
+      const aiSlideTrigger = e.target.closest("#fc-ask-ai-slide-trigger");
+      if (aiSlideTrigger) {
         e.preventDefault();
         e.stopPropagation();
-        toggleAskAIDropdown();
+        toggleAskAIDock();
         return;
       }
 
@@ -1919,14 +1914,14 @@
       if (aiBtn) {
         e.preventDefault();
         e.stopPropagation();
-        closeAskAIDropdown();
+        closeAskAIDock();
         handleAskAIClick(aiBtn);
         return;
       }
 
-      // Close dropdown if clicked outside menu wrapper
-      if (!e.target.closest("#fc-ask-ai-menu-wrapper")) {
-        closeAskAIDropdown();
+      // Close slide dock if clicked outside dock
+      if (!e.target.closest("#fc-ask-ai-slide-dock")) {
+        closeAskAIDock();
       }
     });
 
